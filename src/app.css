@@ -1,0 +1,430 @@
+/* =============================================================================
+ * taabg showcase + docs site
+ *
+ * Tokens are transcribed from the repository DESIGN.md (Primer dark decision
+ * record ADR 0017, logo teal ADR 0020, crimson error ADR 0022) so this site and
+ * the shipped dashboard speak the same visual language. Changing a colour here
+ * means changing it in DESIGN.md too.
+ * ========================================================================== */
+
+@import 'tailwindcss';
+
+@theme {
+	/* Surfaces: GitHub Primer dark (ADR 0017). */
+	--color-base-100: #0d1117;
+	--color-base-200: #161b22;
+	--color-base-300: #21262d;
+	--color-base-400: #30363d;
+
+	/*
+	 * Primer's border.strong. `base-300` and `base-400` are hairlines between
+	 * sections and read as dividers, which WCAG 1.4.11 exempts. A boundary that
+	 * identifies a control has to clear 3:1, and neither hairline colour does,
+	 * so interactive outlines use this instead (4.12:1 on base-100).
+	 */
+	--color-border-strong: #6e7681;
+
+	/* Content ramp. `muted` is the 50-70% support-copy tier from DESIGN.md. */
+	--color-content: #e6edf3;
+	--color-content-muted: #7d858d;
+
+	/* Identity: logo teal #2EAA8D (ADR 0020), the one hue allowed to decorate. */
+	--color-primary: #2eaa8d;
+	--color-primary-content: #04231d;
+
+	/* Semantic ramp. Hue means state, never mood (DESIGN.md). */
+	--color-success: #3fb950;
+	--color-warning: #d29922;
+	--color-error: #eb4772;
+	--color-info: #58a6ff;
+
+	/* Neutral that still has to clear 3:1 against a base-300 track (WCAG 1.4.11). */
+	--color-sem-idle: #7d858d;
+
+	/*
+	 * Type scale. Six steps, named by job rather than by number, so a component
+	 * asks for `support` or `lead` and never for an arbitrary rem value. The
+	 * previous build carried fourteen distinct sizes across the site, which is
+	 * what made it read as cramped: with no scale, everything looks the same size
+	 * and nothing reads as a heading.
+	 */
+	--text-micro: 0.6875rem; /* 11px  uppercase labels, tabular data tags */
+	--text-small: 0.8125rem; /* 13px  captions, provenance, meta */
+	--text-support: 0.875rem; /* 14px  support copy, table cells, nav */
+	--text-body: 1rem; /* 16px  body and long-form prose */
+	--text-lead: 1.1875rem; /* 19px  section standfirsts */
+	--text-title: 1.75rem; /* 28px  section headings */
+	--text-display: 2.75rem; /* 44px  the one h1 */
+	--text-figure: 3rem; /* 48px  the three portal counts, larger than any heading */
+
+	/* Leading pairs, so line height travels with the size it belongs to. */
+	--leading-tight: 1.15;
+	--leading-snug: 1.3;
+	--leading-normal: 1.55;
+	--leading-prose: 1.75;
+
+	/* 4px grid. */
+	--spacing: 4px;
+
+	/*
+	 * Radius: three steps, and nothing else rounds. The previous build had six
+	 * values in play (0, 2px, 3px, 4px, 6px, 8px), which reads as inconsistency
+	 * rather than hierarchy. `xs` is a keycap, `sm` is a control, `md` is a panel.
+	 */
+	--radius-xs: 3px;
+	--radius-sm: 4px;
+	--radius-md: 8px;
+
+	/* Sans for chrome and labels, mono for machine-owned data (DESIGN.md typography). */
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+	--font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+	/*
+	 * Header height. 4rem, not the dashboard's 2rem: at 32px the bar read as a
+	 * toolbar strip and the brand had nowhere to sit.
+	 */
+	--spacing-header: 4rem;
+
+	/*
+	 * Section rhythm. `--space-section` is the pause between top-level sections,
+	 * `--space-block` the gap between blocks inside one. Sections on this page
+	 * deliberately do not all share one rhythm; `src/routes/+page.svelte` says
+	 * which shape each one takes and why.
+	 */
+	--space-block: 1.5rem;
+	--space-section: 7rem;
+
+	/*
+	 * Page gutter. The widest the content ever gets, so a 34rem palette on a
+	 * 1440px screen is centred rather than stretched.
+	 */
+	--shell-max: 80rem;
+	--gutter: 2rem;
+}
+
+@layer base {
+	html {
+		background-color: var(--color-base-100);
+		/* Anchored headings must clear the sticky header, not hide under it. */
+		scroll-padding-top: 5rem;
+		scroll-behavior: smooth;
+	}
+
+	body {
+		background-color: var(--color-base-100);
+		color: var(--color-content);
+		font-family: var(--font-sans);
+		/*
+		 * 16px at 1.55. DESIGN.md's 14px/1.5 belongs to the ops console, where an
+		 * operator scans a live panel. This is a reading surface, so it takes
+		 * prose metrics and every component inherits from here.
+		 */
+		font-size: var(--text-body);
+		line-height: var(--leading-normal);
+		-webkit-font-smoothing: antialiased;
+	}
+
+	/*
+	 * Headings are sized by role, not by an author picking a rem value. This is
+	 * what gives the page a hierarchy: one display, one title, one smaller title.
+	 */
+	h1,
+	h2,
+	h3,
+	h4 {
+		color: var(--color-content);
+		font-weight: 600;
+		text-wrap: balance;
+	}
+
+	h1 {
+		font-size: var(--text-display);
+		line-height: var(--leading-tight);
+		letter-spacing: -0.02em;
+	}
+
+	h2 {
+		font-size: var(--text-title);
+		line-height: var(--leading-snug);
+		letter-spacing: -0.01em;
+	}
+
+	h3 {
+		font-size: var(--text-body);
+		line-height: var(--leading-snug);
+	}
+
+	h4 {
+		font-size: var(--text-support);
+		line-height: var(--leading-snug);
+	}
+
+	p {
+		text-wrap: pretty;
+	}
+
+	/* Focus is a teal ring, never removed (R-32). */
+	:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+		border-radius: var(--radius-xs);
+	}
+
+	::selection {
+		background-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+		color: var(--color-content);
+	}
+
+	/* Chromium reads a non-initial `scrollbar-color` on :root as a request to
+	 * use the standard scrollbar, which silently drops a rail rule. Pin it back
+	 * to auto on rails that own their own pseudo-element (ADR 0021, same trap). */
+	* {
+		scrollbar-color: auto;
+	}
+}
+
+@layer components {
+	/*
+	 * The page gutter and measure. This has to be a real global rule rather than a
+	 * scoped one: the hero and the landing sections are separate components, and a
+	 * component-scoped `.shell` in one of them silently fails to apply to the other,
+	 * which left the hero running edge to edge with no measure and no centring.
+	 */
+	.shell {
+		max-width: var(--shell-max);
+		margin-inline: auto;
+		padding-inline: var(--gutter);
+	}
+
+	/* The dashboard's identity motif (DESIGN.md L5), reused as the site's code
+	 * surface. One frame style for mdsvex output and for CodeBlock.svelte. */
+	.codeblock {
+		background-color: var(--color-base-200);
+		border: 1px solid var(--color-base-300);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.codeblock-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+		border-bottom: 1px solid var(--color-base-300);
+		background-color: color-mix(in srgb, var(--color-base-300) 45%, var(--color-base-200));
+		min-height: 2.5rem;
+	}
+
+	/* Mono here because a grammar name is machine-owned data, not a label. */
+	.codeblock-lang {
+		font-family: var(--font-mono);
+		font-size: var(--text-micro);
+		letter-spacing: 0.02em;
+		color: color-mix(in srgb, var(--color-content) 60%, transparent);
+	}
+
+	/* Ghost tier: utility affordance, not a command. Touch target grows below 768px. */
+	.codeblock-copy {
+		font-family: var(--font-sans);
+		font-size: var(--text-small);
+		line-height: 1rem;
+		color: color-mix(in srgb, var(--color-content) 70%, transparent);
+		background-color: transparent;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		padding: 0.25rem 0.5rem;
+		cursor: pointer;
+		transition:
+			color 120ms ease,
+			background-color 120ms ease;
+	}
+
+	.codeblock-copy:hover {
+		color: var(--color-content);
+		background-color: var(--color-base-300);
+	}
+
+	.codeblock-copy[data-state='copied'] {
+		color: var(--color-primary);
+	}
+
+	/*
+	 * KPI label treatment, transcribed from DESIGN.md: uppercase, tracked out,
+	 * 60% content opacity. At `--text-micro` it is a label and not body copy,
+	 * which is the only reason 11px is acceptable here.
+	 */
+	.micro-label {
+		font-size: var(--text-micro);
+		line-height: 1rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: color-mix(in srgb, var(--color-content) 60%, transparent);
+	}
+
+	/* Prose link: underlined so it is not colour-alone. */
+	.prose a {
+		color: var(--color-primary);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		text-decoration-thickness: 1px;
+	}
+
+	/* mdsvex output carries no typography plugin, so prose is styled here. Kept
+	 * out of a layer for `pre`/`code` so Shiki's inline background can be
+	 * overridden; see the note above the rule.
+	 *
+	 * Block spacing is deliberately loose: 1.5rem between blocks, and a section
+	 * heading gets 4rem of air above it plus a hairline, so a long page reads as
+	 * sections rather than one dense column. */
+	.prose {
+		color: var(--color-content);
+		font-size: var(--text-body);
+		line-height: var(--leading-prose);
+	}
+
+	.prose > * + * {
+		margin-top: 1.5rem;
+	}
+
+	.prose h2 {
+		margin-top: 4rem;
+		padding-top: 2.5rem;
+		border-top: 1px solid var(--color-base-300);
+	}
+
+	.prose h3 {
+		margin-top: 2.5rem;
+	}
+
+	.prose h2:first-child {
+		margin-top: 0;
+		padding-top: 0;
+		border-top: 0;
+	}
+
+	.prose a {
+		color: var(--color-primary);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
+	.prose a:hover {
+		text-decoration-thickness: 2px;
+	}
+
+	.prose ul,
+	.prose ol {
+		padding-left: 1.5rem;
+	}
+
+	.prose ul {
+		list-style: disc;
+	}
+
+	.prose ol {
+		list-style: decimal;
+	}
+
+	.prose li + li {
+		margin-top: 0.625rem;
+	}
+
+	.prose li::marker {
+		color: var(--color-content-muted);
+	}
+
+	/* Inline code. Mono is the DESIGN.md signal for machine-owned values. */
+	.prose :not(pre) > code {
+		font-family: var(--font-mono);
+		font-size: 0.8125em;
+		background-color: var(--color-base-200);
+		border: 1px solid var(--color-base-300);
+		border-radius: var(--radius-sm);
+		padding: 0.1em 0.35em;
+		color: var(--color-content);
+		overflow-wrap: break-word;
+	}
+
+	.prose blockquote {
+		border-left: 2px solid var(--color-primary);
+		padding-left: 1rem;
+		color: color-mix(in srgb, var(--color-content) 75%, transparent);
+	}
+
+	.prose table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: var(--text-support);
+		display: block;
+		overflow-x: auto;
+	}
+
+	.prose th,
+	.prose td {
+		border: 1px solid var(--color-base-300);
+		padding: 0.875rem 1rem;
+		text-align: left;
+		vertical-align: top;
+	}
+
+	.prose th {
+		background-color: var(--color-base-200);
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.prose hr {
+		border-color: var(--color-base-300);
+	}
+
+	.prose strong {
+		font-weight: 600;
+	}
+
+	/* Shiki writes an inline background on the pre; the frame owns the surface. */
+	.prose .shiki,
+	.shiki {
+		background-color: transparent !important;
+	}
+
+	.shiki {
+		overflow-x: auto;
+		padding: 1.5rem 1.75rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-support);
+		line-height: var(--leading-prose);
+		tab-size: 4;
+	}
+}
+
+/* MOTION is dial 1 in DESIGN.md: no entrances, no scroll reveals. Only
+ * functional feedback moves, and reduced-motion removes even that. */
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* Touch targets grow to 44px below 768px (DESIGN.md locks). */
+@media (max-width: 767px) {
+	.codeblock-copy {
+		min-height: 44px;
+		min-width: 44px;
+	}
+}
+
+@media (max-width: 1023px) {
+	.shell {
+		padding-inline: 1.5rem;
+	}
+}

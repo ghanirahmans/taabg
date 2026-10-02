@@ -1,0 +1,34 @@
+{
+  "name": "taabg-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Showcase and documentation site for taabg (Telkom Access Assurance Bot Ghani)",
+  "imports": {
+    "#lib": "./src/lib",
+    "#lib/*": "./src/lib/*"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^4.0.0",
+    "@sveltejs/kit": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "mdsvex": "^0.12.8",
+    "shiki": "^4.5.0",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.2"
+  },
+  "dependencies": {
+    "lucide-svelte": "^0.545.0"
+  }
+}
