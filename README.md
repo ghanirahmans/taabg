@@ -85,13 +85,41 @@ in `package.json` `imports` and mirrored in `tsconfig.json` `paths` so
 
 ## Adding a documentation page
 
-1. Write `src/lib/docs/<slug>.md`. Give every `h2` and `h3` an explicit `{#id}`.
+1. Write `src/lib/docs/<slug>.md`. **Give every `h2` and `h3` an explicit `{#id}`.**
+   Without one the heading renders but never parses, so the page loses its table
+   of contents and its search entries. This is the single easiest mistake to make
+   here and it fails silently.
 2. Add an entry to `DOC_ENTRIES` in `src/lib/docs/manifest.ts`, with `order`,
    `source.path` pointing at the file it was written from, and `keywords` that
    include the words an operator would actually type.
 3. `npm run check && npm run build`.
 
 The sidebar, search, prev/next and prerendering pick it up automatically.
+
+## Guards have to be able to fail
+
+Everything in this site is verified by reading the built HTML and the compiled CSS,
+because there is no browser attached to the working session. That works for proving
+a declared floor exceeds its container. It cannot prove what a rendered page looks
+like, and it has three failure modes worth naming, each of which has already
+produced a false green here:
+
+1. **An unresolvable value must return null, never 0.** The log budget divides by
+   the band's font size. When that lookup missed `--text-micro` in its scale table
+   it returned 0, the budget became `Infinity`, and every one of the 21 rows passed
+   a check that could not fail. It now reports `Infinity` as unmeasurable and says
+   so in the output, because a guard that silently degrades into a no-op is worse
+   than no guard: it prints green.
+2. **Read the source data, not only the rendered HTML.** The HTML for the log band
+   contains one panel, so a check that reads only the HTML measures one of three
+   scenarios. The tabs now render every panel and hide the inactive ones, which is
+   what the WAI-ARIA pattern wants anyway.
+3. **Check every page, not one representative page.** Every heading-id bug escaped
+   because each guard reached for `architecture.html`. Comparing parsed against
+   rendered ids on all seven pages is what found it.
+
+When a check cannot measure something, it should say `unmeasurable` rather than
+defaulting to a value that passes.
 
 ## Layout rules worth knowing
 
@@ -122,12 +150,85 @@ that needs the gutter, use `class="shell"` and do not redefine it.
    shrink, so on a 360px phone the four fixed fields took 326px of a 232px band
    and the message collapsed to nothing. The row is now a wrapping flex row with
    `min-width: 0` on the message, and below 640px the message takes a full line.
+5. **Name the fields, never `> span`.** `.log li > span { white-space: nowrap }`
+   scored (0,2,2) and beat `.log-message` at (0,2,0), so the message inherited
+   nowrap, collapsed under `flex: 1 1 0`, and was clipped by the frame. The
+   nowrap rule now names `.log-time`, `.log-level`, `.log-trace` and
+   `.log-component` individually.
+6. **A media query goes after the rule it overrides.** `.log-level` is declared
+   twice at the same specificity, so source order decides. Declaring the 480px
+   block above the base rule left the override dead.
+
+`LogBand` renders every transcript and hides the inactive panels with `hidden`,
+which is what the WAI-ARIA tabs pattern asks for. Rendering only the active one
+meant an inactive tab's `aria-controls` pointed at an element that was not in the
+DOM, and it also meant any check that read the built HTML only ever saw one of the
+three scenarios.
 
 `overflow-x: auto` stays on `.table-scroll` and `.shiki` as a safety net for
 narrow viewports, but nothing should reach it on a desktop layout. A table wider
 than a phone scrolls inside its frame, which is correct; clipping it would not be.
 
-## Spacing, and why it differs from the dashboard
+**`aria-controls` names something that exists, in every state.** The mobile menu
+renders its panel unconditionally and hides it with `hidden` while closed, so the
+trigger can carry `aria-controls="mobile-menu"` permanently. The earlier version
+rendered the panel conditionally and dropped `aria-controls` instead, which left a
+disclosure button with nothing to disclose. Same requirement, opposite resolution,
+so `hidden` on the panel and `display: none` forced for both `.scrim[hidden]` and
+`.mobile-menu[hidden]`.
+
+**Removing a trigger means removing what it opened.** The docs drawer was deleted
+along with its "Browse documentation" button, and taking only the button would have
+left a panel with no way in whose Escape handler still called
+`drawerTrigger?.focus()` on a `null` reference. Deleting a trigger is half a change:
+audit what pointed at it before stopping.
+
+**The navbar menu is the only documentation navigation below 1024px.** It used to
+list four hand-picked pages and lean on the drawer for the rest. With the drawer
+gone it carries all seven, grouped by the same section headings the sidebar uses, so
+the phone reader gets the orientation the desktop rail gives. A guard reads the menu
+out of the built HTML and asserts every `DOC_ENTRIES` slug is one tap away, because
+this is exactly the kind of completeness that quietly decays.
+
+## Documentation layout
+
+The docs shell follows what the documentation-layout research converges on. The
+sources are worth naming because the reasoning is not obvious from the result:
+
+- **The table of contents is a control surface, not a list of links.** It tracks
+  the reader's position with an IntersectionObserver, marks the current heading,
+  and offers a way back to the top. Every source treats a static TOC as a failure:
+  a reader who cannot tell where they are stops trusting the page.
+- **IntersectionObserver, not a scroll handler.** A scroll handler runs on every
+  frame and fights the browser's own scrolling.
+- **Topmost heading wins.** Several headings are usually in view at once, and
+  taking whichever fires first makes the marker flicker between two entries.
+- **Below 1280px the TOC becomes a disclosure above the prose**, not nothing.
+  Losing in-page navigation on a tablet or phone is the most common failure in
+  mobile docs.
+- **The rail column is always in the grid**, even with nothing to put in it.
+  Rendering it conditionally moved the content column sideways between pages,
+  which is layout shift, which is pure friction.
+- **Breadcrumbs on every content page.** They matter most for a reader who
+  arrived from a search engine and has no idea how deep they are.
+- **Search indexes fenced content.** A pasted error message or a half-remembered
+  flag appears only inside a code block, and that is the most valuable thing a
+  reader can search for. Such a hit shows the command, monospaced.
+- **`scroll-padding-top` clears the sticky header**, so an anchor lands with air
+  around it rather than under the bar.
+
+### The heading-id trap
+
+Two parsers read the same markdown, and they must agree:
+
+- `remark-headings.js` assigns an id to every heading, falling back to a slug
+- `search.ts` `parseDoc` only recognises an explicit `{#id}`
+
+A heading without one therefore **renders with an id but parses as nothing**, and
+the page silently loses its table of contents and its search index. `introduction.md`
+shipped that way for a long time and every earlier guard missed it, because they
+all checked `architecture.html`. Give every `h2` and `h3` an explicit `{#id}`, and
+the regression suite compares parsed against rendered ids on every page.
 
 `DESIGN.md` in the Go repository specifies 14px on a 1.5 line height with a 32px
 header, because that dashboard is an **operations console**: a technician scans a

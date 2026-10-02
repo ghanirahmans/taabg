@@ -106,8 +106,11 @@
 @layer base {
 	html {
 		background-color: var(--color-base-100);
-		/* Anchored headings must clear the sticky header, not hide under it. */
-		scroll-padding-top: 5rem;
+		/*
+		 * Anchored headings must clear the 4rem sticky header, and land with a
+		 * little air so the reader does not think the page stopped moving.
+		 */
+		scroll-padding-top: 5.5rem;
 		scroll-behavior: smooth;
 	}
 

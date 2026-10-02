@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ArrowLeft, ArrowRight } from 'lucide-svelte';
 	import type { Component } from 'svelte';
+	import Breadcrumbs from '#lib/components/Breadcrumbs.svelte';
 	import { findDoc, neighbours } from '#lib/docs/manifest';
 
 	let { data } = $props();
@@ -66,12 +67,18 @@
 
 <article>
 	<header class="mb-12 border-b border-base-300 pb-8">
-		<p class="micro-label">{data.section}</p>
-		<h1 class="mt-3 text-[1.75rem] leading-tight lg:text-[2.25rem]">{data.title}</h1>
+		<Breadcrumbs section={data.section} title={data.title} />
+		<h1 class="text-[1.75rem] leading-tight lg:text-[2.25rem]">{data.title}</h1>
 		{#if entry}
 			<p class="mt-4 text-[0.9375rem] leading-relaxed text-content-muted">{entry.description}</p>
-			<p class="mt-5 font-mono text-[0.8125rem] text-content-muted">
-				Written from <span class="text-content">{entry.source.path}</span>
+			<!--
+				Provenance is a callout rather than another grey line. It is the one
+				thing on the page that tells a reader how much to trust the rest, and
+				burying it under the description meant nobody checked.
+			-->
+			<p class="source">
+				Written from <code>{entry.source.path}</code> in the bot repository. Where this page and the
+				repository disagree, the repository wins.
 			</p>
 		{/if}
 	</header>
@@ -104,6 +111,23 @@
 </article>
 
 <style>
+	.source {
+		margin-top: 1.5rem;
+		padding: 0.875rem 1rem;
+		background-color: var(--color-base-200);
+		border-left: 2px solid var(--color-primary);
+		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+		max-width: 62ch;
+		font-size: var(--text-small);
+		line-height: 1.6;
+		color: color-mix(in srgb, var(--color-content) 68%, transparent);
+	}
+
+	.source code {
+		font-family: var(--font-mono);
+		color: var(--color-content);
+	}
+
 	.pager {
 		display: block;
 		border: 1px solid var(--color-base-300);

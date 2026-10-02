@@ -15,8 +15,13 @@ export interface DocIndexEntry {
 	keywords: string[];
 	order: number;
 	headings: DocHeading[];
-	/** Markdown body with code fences and directives removed, for matching. */
+	/** Markdown prose with code fences removed, for matching. */
 	body: string;
+	/**
+	 * The contents of every fenced block, for matching. Kept apart from `body` so
+	 * a hit can show a line of shell rather than a paragraph that quotes it.
+	 */
+	code: string;
 }
 
 export type DocIndex = DocIndexEntry[];
@@ -28,18 +33,32 @@ export type DocIndex = DocIndexEntry[];
  */
 const HEADING = /^#{2,3}\s+(.+?)\s*\{#([\w-]+)\}\s*$/;
 const FENCE = /^(```|~~~)/;
+const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---/;
 
-export function parseDoc(slug: string, raw: string): Pick<DocIndexEntry, 'headings' | 'body'> {
+export function parseDoc(slug: string, raw: string): Pick<DocIndexEntry, 'headings' | 'body' | 'code'> {
 	const headings: DocHeading[] = [];
 	const bodyLines: string[] = [];
+	const codeLines: string[] = [];
 	let inFence = false;
 
-	for (const line of raw.split('\n')) {
+	for (const line of raw.replace(FRONTMATTER, '').split('\n')) {
 		if (FENCE.test(line)) {
 			inFence = !inFence;
 			continue;
 		}
-		if (inFence) continue;
+
+		/*
+		 * Fenced content goes into its own field rather than being dropped.
+		 *
+		 * The first version of this index skipped it, and that made search fail the
+		 * case the docs research calls the most valuable one: a reader who pastes an
+		 * error message from their terminal, or half-remembers a flag, and finds
+		 * nothing because the term only ever appeared inside a code block.
+		 */
+		if (inFence) {
+			if (line.trim()) codeLines.push(line.trim());
+			continue;
+		}
 
 		const match = HEADING.exec(line);
 		if (match) {
@@ -49,7 +68,7 @@ export function parseDoc(slug: string, raw: string): Pick<DocIndexEntry, 'headin
 		bodyLines.push(line);
 	}
 
-	return { headings, body: bodyLines.join('\n') };
+	return { headings, body: bodyLines.join('\n'), code: codeLines.join('\n') };
 }
 
 export function buildIndex(sources: Record<string, string>): DocIndex {
@@ -66,6 +85,17 @@ export interface SearchHit {
 	excerpt: string;
 	/** Present when the hit is a heading deeper in a page. */
 	anchor?: string;
+	/** Present when the excerpt came from a code block rather than prose. */
+	fromCode?: boolean;
+}
+
+/** The single code line containing a term, so the result shows the command. */
+function codeLineAt(code: string, query: string): string | null {
+	const q = normalize(query);
+	for (const line of code.split('\n')) {
+		if (normalize(line).includes(q)) return line.trim();
+	}
+	return null;
 }
 
 function normalize(value: string): string {
@@ -102,14 +132,33 @@ export function queryIndex(index: DocIndex, query: string): SearchHit[] {
 		else if (keywords.some((k) => k.startsWith(q))) score = 30;
 		else if (keywords.some((k) => k.includes(q))) score = 20;
 
-		// Body match is the weakest tier and the reason the excerpt exists: the hit
-		// names the page, and `excerptFor` pulls the sentence around the match.
+		// Body match is a weak tier and the reason the excerpt exists: the hit names
+		// the page, and `excerptFor` pulls the sentence around the match.
 		else if (normalize(entry.body).includes(q)) score = 10;
 
 		if (score > 0) {
 			scored.push({
 				hit: { title: entry.title, slug: entry.slug, section: entry.section, excerpt: entry.description },
 				score,
+				order: entry.order
+			});
+		}
+
+		/*
+		 * A hit that exists only inside a code block. Scored above a prose match on
+		 * purpose: a reader searching `taabg doctor` or an error string wants the
+		 * command, not a paragraph that mentions one.
+		 */
+		if (score === 0 && normalize(entry.code).includes(q)) {
+			scored.push({
+				hit: {
+					title: entry.title,
+					slug: entry.slug,
+					section: entry.section,
+					excerpt: codeLineAt(entry.code, q) ?? entry.description,
+					fromCode: true
+				},
+				score: 15,
 				order: entry.order
 			});
 		}

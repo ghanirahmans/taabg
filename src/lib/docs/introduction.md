@@ -11,13 +11,13 @@ runs the check, and posts the result with a screenshot back into the group.
 It is written in Go and ships as a single binary. There is no Python, no Node and
 no virtualenv on the machine that runs it.
 
-## Who it is for
+## Who it is for {#who-it-is-for}
 
 A technician or team lead who already knows the job. The bot does not explain
 Telkom's processes or suggest what to check. It removes the browser work from a
 task that is already understood, and it keeps a record of what ran.
 
-## The checks
+## The checks {#the-checks}
 
 Seven checks are implemented and documented:
 
@@ -31,7 +31,7 @@ Seven checks are implemented and documented:
 | `ACS ONT` | What is registered against this ONT serial number | ACSIS |
 | `CEK FUP` | First up and payment status | Finpay |
 
-## The three entry points
+## The three entry points {#the-three-entry-points}
 
 Three commands start the same system, and the difference is only where it runs.
 
@@ -45,7 +45,7 @@ taabg scraper   # one portal call, no Telegram
 what you leave running. `scraper` exists because the scraping logic has no
 dependency on Telegram at all, so it can be exercised directly during debugging.
 
-## What it looks like in a group
+## What it looks like in a group {#what-it-looks-like-in-a-group}
 
 A technician types a request in plain language. No command prefix, no syntax to
 remember:
@@ -58,7 +58,7 @@ The bot replies with a table of the ONUs it found and a screenshot of the portal
 result. Nothing else appears in the group. Technical errors and captcha requests
 go to a separate debug group, so the technician channel stays readable.
 
-## What it deliberately does not do
+## What it deliberately does not do {#what-it-deliberately-does-not-do}
 
 This matters more than the feature list, because the bot lives in a busy group
 chat rather than in a private console.

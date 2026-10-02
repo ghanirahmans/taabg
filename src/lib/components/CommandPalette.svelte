@@ -117,8 +117,14 @@
 								<span class="micro-label shrink-0">{hit.section}</span>
 							</span>
 							{#if !hit.anchor}
-								<span class="mt-1.5 block text-[0.8125rem] leading-relaxed text-content-muted">
-									{excerptFor(index, hit, query)}
+								<span class="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] leading-relaxed text-content-muted">
+									{#if hit.fromCode}
+										<!-- The term lives in a code block: show the command, monospaced,
+											so the result is something the reader can act on directly. -->
+										<code class="font-mono text-primary">{hit.excerpt}</code>
+									{:else}
+										{excerptFor(index, hit, query)}
+									{/if}
 								</span>
 							{/if}
 						</button>

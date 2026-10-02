@@ -47,13 +47,13 @@ export const TRANSCRIPTS: Transcript[] = [
 		caption:
 			'A Gladius session that needs a human. Only one captcha is ever asked for, and it goes to the debug group, never the technicians channel.',
 		lines: [
-			{ time: '09:14:51', level: 'INFO', trace: '77c0e4b2', component: 'router', message: 'match EMBASSY 0.93 -> request #4102 queued' },
+			{ time: '09:14:51', level: 'INFO', trace: '77c0e4b2', component: 'router', message: 'match EMBASSY 0.93 -> #4102 queued' },
 			{ time: '09:14:51', level: 'INFO', trace: '77c0e4b2', component: 'gladius', message: 'slot 1/2 acquired, session expired' },
-			{ time: '09:14:52', level: 'WARN', trace: '77c0e4b2', component: 'gladius', message: 'captcha required, single-flight lock held' },
-			{ time: '09:14:52', level: 'INFO', trace: '77c0e4b2', component: 'debug_bot', message: 'captcha sent to debug group, request parked' },
-			{ time: '09:17:03', level: 'INFO', trace: '77c0e4b2', component: 'gladius', message: 'captcha solved, session restored' },
-			{ time: '09:17:19', level: 'INFO', trace: '77c0e4b2', component: 'gladius', message: 'radius ok, telsel 2,LOS 0,OLT-ACCESS-17' },
-			{ time: '09:17:19', level: 'INFO', trace: '77c0e4b2', component: 'worker', message: 'done 148.0s, reply to group + screenshot' }
+			{ time: '09:14:52', level: 'WARN', trace: '77c0e4b2', component: 'gladius', message: 'captcha required, lock held' },
+			{ time: '09:14:52', level: 'INFO', trace: '77c0e4b2', component: 'debug_bot', message: 'captcha sent to debug group' },
+			{ time: '09:17:03', level: 'INFO', trace: '77c0e4b2', component: 'gladius', message: 'captcha solved, session back' },
+			{ time: '09:17:19', level: 'INFO', trace: '77c0e4b2', component: 'gladius', message: 'radius ok, telsel 2, LOS 0' },
+			{ time: '09:17:19', level: 'INFO', trace: '77c0e4b2', component: 'worker', message: 'done 148.0s, reply + screenshot' }
 		]
 	},
 	{
@@ -64,8 +64,8 @@ export const TRANSCRIPTS: Transcript[] = [
 		lines: [
 			{ time: '21:02:10', level: 'INFO', trace: '1d5b8fa0', component: 'vpn', message: 'globalprotect unreachable, 3 probes' },
 			{ time: '21:02:14', level: 'WARN', trace: '1d5b8fa0', component: 'vpn', message: 'link down, queue paused' },
-			{ time: '21:02:14', level: 'INFO', trace: '1d5b8fa0', component: 'bot', message: 'waiting message bntr deleted from group' },
-			{ time: '21:02:15', level: 'INFO', trace: '1d5b8fa0', component: 'worker', message: 'running task #4502 held, no public error' },
+			{ time: '21:02:14', level: 'INFO', trace: '1d5b8fa0', component: 'bot', message: 'waiting message bntr deleted' },
+			{ time: '21:02:15', level: 'INFO', trace: '1d5b8fa0', component: 'worker', message: 'task #4502 held, no error' },
 			{ time: '21:09:41', level: 'INFO', trace: '1d5b8fa0', component: 'vpn', message: 'link restored, queue resumed' },
 			{ time: '21:09:41', level: 'INFO', trace: '1d5b8fa0', component: 'worker', message: 'task #4502 released to queue' }
 		]

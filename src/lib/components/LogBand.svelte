@@ -11,8 +11,6 @@
 
 	let active = $state(TRANSCRIPTS[0].id);
 
-	const current = $derived(TRANSCRIPTS.find((t) => t.id === active) ?? TRANSCRIPTS[0]);
-
 	/**
 	 * Hue maps to level, never to decoration: this is the DESIGN.md semantic ramp,
 	 * so INFO stays muted and only WARN and ERROR earn a colour.
@@ -56,28 +54,43 @@
 		<span class="codeblock-lang shrink-0">internal/utils/logger.go</span>
 	</div>
 
-	<div id="panel-{current.id}" role="tabpanel" aria-labelledby="tab-{current.id}" tabindex="0" class="body">
-		<p class="prompt">
-			<span class="micro-label">You send</span>
-			<code>{current.prompt}</code>
-		</p>
+	<!--
+		Every panel is rendered and the inactive ones are hidden, rather than only
+		rendering the active one. That is what the WAI-ARIA tabs pattern asks for,
+		and it fixes a concrete defect: an inactive tab's `aria-controls` pointed at a
+		panel that was not in the DOM at all.
+	-->
+	{#each TRANSCRIPTS as transcript (transcript.id)}
+		<div
+			id="panel-{transcript.id}"
+			role="tabpanel"
+			aria-labelledby="tab-{transcript.id}"
+			tabindex="0"
+			class="body"
+			hidden={active !== transcript.id}
+		>
+			<p class="prompt">
+				<span class="micro-label">You send</span>
+				<code>{transcript.prompt}</code>
+			</p>
 
-		<ol class="log">
-			{#each current.lines as line, i (i)}
-				<li>
-					<span class="log-time">[{line.time}]</span>
-					<span class="log-level {levelClass[line.level]}">[{line.level}]</span>
-					<span class="log-trace">[{line.trace}]</span>
-					<span class="log-component">[{line.component}]</span>
-					<span class="log-message">{line.message}</span>
-				</li>
-			{/each}
-		</ol>
+			<ol class="log">
+				{#each transcript.lines as line, i (i)}
+					<li>
+						<span class="log-time">[{line.time}]</span>
+						<span class="log-level {levelClass[line.level]}">[{line.level}]</span>
+						<span class="log-trace">[{line.trace}]</span>
+						<span class="log-component">[{line.component}]</span>
+						<span class="log-message">{line.message}</span>
+					</li>
+				{/each}
+			</ol>
 
-		{#if showCaption}
-			<p class="caption">{current.caption}</p>
-		{/if}
-	</div>
+			{#if showCaption}
+				<p class="caption">{transcript.caption}</p>
+			{/if}
+		</div>
+	{/each}
 </div>
 
 <style>
@@ -118,23 +131,13 @@
 		padding: 2rem;
 	}
 
-	@media (max-width: 480px) {
-		/*
-		 * At 360px the four fixed fields need about 319px of a 232px band, so they
-		 * wrap to a second line. Tighter field padding buys back a row, which keeps
-		 * each log entry to two lines instead of three on a phone.
-		 */
-		.body {
-			padding: 1.25rem;
-		}
-
-		.log li {
-			gap: 0.25rem 0.375rem;
-		}
-
-		.log-level {
-			width: 4.25rem;
-		}
+	/*
+	 * `hidden` has to beat the panel's own display, or the inactive panels stay
+	 * on screen. Both selectors carry the same specificity, so source order is
+	 * what decides: this comes after `.body`.
+	 */
+	.body[hidden] {
+		display: none;
 	}
 
 	.prompt {
@@ -180,12 +183,23 @@
 		row-gap: 0.25rem;
 	}
 
-	.log li > span {
+	/*
+	 * The fixed fields never wrap. The message is excluded on purpose: a bare
+	 * `> span` selector scored (0,2,2) and beat `.log-message` at (0,2,0), so the
+	 * message inherited nowrap, collapsed under `flex: 1 1 0`, and was then clipped
+	 * by the frame's `overflow: hidden`. Naming the fields is both clearer and
+	 * immune to that.
+	 */
+	.log-time,
+	.log-level,
+	.log-trace,
+	.log-component {
 		white-space: nowrap;
 	}
 
 	/* The message is the only field allowed to wrap internally. */
-	.log-message {
+	.log-message,
+	.log li > .log-message {
 		flex: 1 1 0;
 		min-width: 0;
 		white-space: pre-wrap;
@@ -229,6 +243,29 @@
 		 */
 		.log-message {
 			flex-basis: 100%;
+		}
+	}
+
+	@media (max-width: 480px) {
+		/*
+		 * At 360px the four fixed fields need about 319px of a 256px band, so they
+		 * wrap to a second line. Tighter padding and a narrower level column buy
+		 * back the row, which keeps each entry to two lines instead of three.
+		 *
+		 * These overrides come last on purpose: `.log-level` and `.body` have the
+		 * same specificity in both places, so source order decides. Declaring the
+		 * media query earlier left them dead.
+		 */
+		.body {
+			padding: 1.25rem;
+		}
+
+		.log li {
+			gap: 0.25rem 0.375rem;
+		}
+
+		.log-level {
+			width: 4.25rem;
 		}
 	}
 

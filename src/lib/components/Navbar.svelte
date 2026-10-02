@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { Menu, Search, X } from 'lucide-svelte';
 	import { palette } from '#lib/search/palette.svelte';
-	import { DOC_ENTRIES } from '#lib/docs/manifest';
+	import { DOC_SECTIONS } from '#lib/docs/manifest';
 
 	let menuOpen = $state(false);
 	let trigger = $state<HTMLButtonElement | null>(null);
@@ -24,9 +24,16 @@
 		{ label: 'Commands', href: '/#commands' }
 	];
 
-	const MOBILE_DOCS = DOC_ENTRIES.filter((d) =>
-		['introduction', 'installation', 'architecture', 'troubleshooting'].includes(d.slug)
-	);
+	/**
+	 * Every doc, grouped the way the sidebar groups them.
+	 *
+	 * This used to be a hand-picked four: introduction, installation,
+	 * architecture, troubleshooting, plus a link to the index for the rest. That
+	 * worked while the docs drawer carried the full tree. With the drawer gone this
+	 * menu is the only documentation navigation below 1024px, so a partial list
+	 * here means three pages a phone reader cannot reach.
+	 */
+	const MOBILE_DOC_SECTIONS = DOC_SECTIONS;
 
 	function isActive(match: string): boolean {
 		return match.startsWith('/#') ? onHome && page.url.hash === match : page.url.pathname.startsWith(match);
@@ -133,6 +140,13 @@
 				type="button"
 				class="menu-trigger xl:hidden"
 				aria-expanded={menuOpen}
+				/*
+				 * `aria-controls` is permanent, which is what the ARIA disclosure
+				 * pattern asks for. That only works because the panel below is always
+				 * in the DOM and hidden when closed, rather than rendered on open. The
+				 * earlier version dropped the attribute instead, which left a
+				 * disclosure button with nothing to disclose.
+				 */
 				aria-controls="mobile-menu"
 				aria-label={menuOpen ? 'Close menu' : 'Open menu'}
 				onclick={() => (menuOpen = !menuOpen)}
@@ -146,73 +160,83 @@
 		</div>
 	</div>
 
-	{#if menuOpen}
-		<!-- Scrim sits below the sticky header so the close control stays reachable (DESIGN.md). -->
-		<button
-			type="button"
-			class="scrim"
-			tabindex="-1"
-			aria-hidden="true"
-			onclick={() => close(false)}
-		></button>
-		<div
-			id="mobile-menu"
-			class="mobile-menu xl:hidden"
-			role="dialog"
-			aria-label="Site menu"
-			aria-modal="true"
-			tabindex="-1"
-			onkeydown={onMenuKey}
-		>
-			<div class="group">
-				<p class="micro-label group-label">Product</p>
-				<div class="flex flex-col gap-1">
-					{#each MOBILE_PRODUCT as item, i (item.href)}
-						<a
-							id={i === 0 ? 'mobile-menu-first' : undefined}
-							href={item.href}
-							class="menu-row"
-							onclick={() => close(false)}
-						>
-							{item.label}
-						</a>
-					{/each}
-				</div>
-			</div>
-
-			<div class="group">
-				<p class="micro-label group-label">Documentation</p>
-				<div class="flex flex-col gap-1">
-					{#each MOBILE_DOCS as doc (doc.slug)}
-						<a
-							href="/docs/{doc.slug}"
-							class="menu-row"
-							aria-current={page.url.pathname === `/docs/${doc.slug}` ? 'page' : undefined}
-							onclick={() => close(false)}
-						>
-							{doc.title}
-						</a>
-					{/each}
-					<a href="/docs" class="menu-row" onclick={() => close(false)}>All documentation</a>
-				</div>
-			</div>
-
-			<div class="group">
-				<p class="micro-label group-label">Actions</p>
-				<button
-					type="button"
-					class="menu-row justify-start"
-					onclick={() => {
-						close(false);
-						palette.show();
-					}}
-				>
-					<Search size={14} strokeWidth={2} aria-hidden="true" />
-					Search docs
-				</button>
+	<!--
+		Always in the DOM, hidden when closed. `aria-controls` on the trigger then
+		points at something real in every state, which is what the disclosure pattern
+		requires. `hidden` also takes the links out of the tab order, so the closed
+		menu costs nothing and traps no focus.
+	-->
+	<button
+		type="button"
+		class="scrim"
+		tabindex="-1"
+		aria-hidden="true"
+		hidden={!menuOpen}
+		onclick={() => close(false)}
+	></button>
+	<div
+		id="mobile-menu"
+		class="mobile-menu xl:hidden"
+		role="dialog"
+		aria-label="Site menu"
+		aria-modal="true"
+		tabindex="-1"
+		hidden={!menuOpen}
+		onkeydown={onMenuKey}
+	>
+		<div class="group">
+			<p class="micro-label group-label">Product</p>
+			<div class="flex flex-col gap-1">
+				{#each MOBILE_PRODUCT as item, i (item.href)}
+					<a
+						id={i === 0 ? 'mobile-menu-first' : undefined}
+						href={item.href}
+						class="menu-row"
+						onclick={() => close(false)}
+					>
+						{item.label}
+					</a>
+				{/each}
 			</div>
 		</div>
-	{/if}
+
+		<div class="group">
+			<p class="micro-label group-label">Documentation</p>
+			{#each MOBILE_DOC_SECTIONS as group (group.title)}
+				<div class="doc-subgroup">
+					<p class="micro-label subgroup-label">{group.title}</p>
+					<div class="flex flex-col gap-1">
+						{#each group.items as doc (doc.slug)}
+							<a
+								href="/docs/{doc.slug}"
+								class="menu-row"
+								aria-current={page.url.pathname === `/docs/${doc.slug}` ? 'page' : undefined}
+								onclick={() => close(false)}
+							>
+								{doc.title}
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/each}
+			<a href="/docs" class="menu-row" onclick={() => close(false)}>All documentation</a>
+		</div>
+
+		<div class="group">
+			<p class="micro-label group-label">Actions</p>
+			<button
+				type="button"
+				class="menu-row justify-start"
+				onclick={() => {
+					close(false);
+					palette.show();
+				}}
+			>
+				<Search size={14} strokeWidth={2} aria-hidden="true" />
+				Search docs
+			</button>
+		</div>
+	</div>
 </header>
 
 <style>
@@ -345,8 +369,31 @@
 		box-shadow: 0 12px 24px rgb(0 0 0 / 0.35);
 	}
 
+	/*
+	 * `hidden` must beat the panel's own `position`, or the closed menu still
+	 * covers the page and its links stay in the tab order. Both selectors have the
+	 * same specificity, so source order is what decides: this comes after.
+	 */
+	.scrim[hidden],
+	.mobile-menu[hidden] {
+		display: none;
+	}
+
 	.group-label {
 		padding: 1rem 2rem 0.5rem;
+	}
+
+	/* Section heading inside the Documentation group, one level in from the group
+	 * label. Seven doc links under one flat heading read as a single undifferentiated
+	 * list, which is why the sidebar groups them and this does too. */
+	.subgroup-label {
+		padding: 0.625rem 2rem 0.25rem;
+	}
+
+	.doc-subgroup + .doc-subgroup {
+		border-top: 1px solid var(--color-base-300);
+		margin-top: 0.5rem;
+		padding-top: 0.25rem;
 	}
 
 	/* One hairline above each group after the first, so ten rows do not read as one list. */
