@@ -16,8 +16,9 @@
 		Everything the bot does, and how to run it
 	</h1>
 	<p class="mt-5 max-w-2xl text-[0.9375rem] leading-relaxed text-content-muted">
-		{DOC_ENTRIES.length} pages, grouped the way you would look them up. Each one names the file in the
-		repository it was written from, so you can check it against the source.
+		{DOC_ENTRIES.length} pages, grouped the way you would look them up. Every page is self contained: it
+		names the settings, the commands and the numbers you need, so none of it depends on access to the
+		bot's own repository.
 	</p>
 </header>
 
@@ -36,7 +37,13 @@
 							</span>
 						</span>
 						{#if entry}
-							<code class="source shrink-0">{entry.source.path}</code>
+							<!--
+								What the page leaves the reader able to do. This used to be the
+								path of the repository file the page was written from, which
+								was unreadable advice to anyone outside the organisation and
+								pointed at nothing they could open.
+							-->
+							<span class="outcome shrink-0">{entry.outcome}</span>
 						{/if}
 					</a>
 				</li>
@@ -47,10 +54,10 @@
 
 <style>
 	.row {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1.5rem;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 22rem;
+		gap: 1.5rem 3rem;
+		align-items: start;
 		background-color: var(--color-base-200);
 		border: 1px solid var(--color-base-300);
 		border-radius: var(--radius-md);
@@ -66,20 +73,30 @@
 		background-color: var(--color-base-300);
 	}
 
-	.source {
-		font-family: var(--font-mono);
+	/*
+	 * The outcome column is prose, so it is set as prose: a readable measure, a
+	 * relaxed leading, and a colour that clears AA over a base-200 panel. It used
+	 * to be a monospace file path, which is what made this row feel like an
+	 * index into a codebase rather than a list of things to read.
+	 */
+	.outcome {
+		max-width: 34ch;
+		padding-top: 0.125rem;
 		font-size: var(--text-small);
-		/* 60% not 50%: the path is the provenance of the page rather than
-		 * decoration, and 50% is the quietest tier that still clears AA over a
-		 * base-200 panel. 60% leaves headroom at 6.01:1. */
-		color: color-mix(in srgb, var(--color-content) 60%, transparent);
-		padding-top: 0.25rem;
+		line-height: 1.6;
+		color: color-mix(in srgb, var(--color-content) 62%, transparent);
 	}
 
-	@media (max-width: 639px) {
+	@media (max-width: 767px) {
 		.row {
-			flex-direction: column;
-			gap: 0.5rem;
+			grid-template-columns: minmax(0, 1fr);
+			gap: 0.75rem;
+		}
+
+		.outcome {
+			max-width: 46ch;
+			padding-top: 0.5rem;
+			border-top: 1px solid var(--color-base-300);
 		}
 	}
 </style>

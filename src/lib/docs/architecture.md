@@ -1,121 +1,171 @@
 ---
 title: Architecture
-description: Layer boundaries, the request pipeline, and why scraping never imports Telegram.
+description: How a request moves through the system, and why scraping never depends on chat.
 ---
 
-`taabg` follows a dependency rule that is stricter than it needs to be for a
-tool this size, and the reason is practical: almost every hard bug in a scraper
-like this one happens where a browser concern meets a chat concern. The layering
-exists to make that meeting point a single, thin one.
+`taabg` has one structural rule, stricter than a tool this size needs, and the
+reason is practical: almost every hard bug in a scraper like this one happens where
+a browser concern meets a chat concern. The layering exists to make that meeting
+point a single, thin one.
 
 ## The rule {#rule}
 
-Dependencies point inward only. A package never imports something that sits
-further out.
+Dependencies point inward only. Nothing that knows about portals is allowed to know
+about Telegram, and nothing that knows about Telegram is allowed to know about
+portals. They meet at exactly one interface, and that interface takes a string and
+returns a struct.
 
-```text
-cmd/
-  internal/bot, internal/cli    entry points
-    internal/scraping           portal work, no chat
-      internal/browser         one shared Chromium
-    internal/router, internal/queue, internal/keywords
-```
+In practice: the scraping code receives an internet number or an ODP code and a
+deadline. It has no idea a chat id exists, and it cannot send a message even if it
+wanted to.
 
-The rule that matters most: **`internal/scraping` does not import `internal/bot`
-or `internal/web`.** The scraping layer receives strings and a `context.Context`,
-and returns structs. It has no idea Telegram, a chat id or an HTTP handler
-exists.
+Two consequences fall out of this for free:
 
-This is why `taabg scraper` can drive a portal from the terminal with no Telegram
-session running. It is also why a portal bug can be reproduced in a test without
-a chat fixture.
+- A portal check can be run from the terminal with no Telegram session at all,
+  which is the fastest way to tell whether a fault is in the portal or in the bot
+  around it.
+- A portal bug can be reproduced without a chat fixture, so the test does not need
+  a network to Telegram to prove a scraping fault.
 
 ## A request end to end {#request}
 
 ```text
 message
-  -> router       match intent, drop noise
-  -> queue        FIFO, 30s dedup window
-  -> scraping     semaphore, browser, portal
-  -> worker       format the reply
-  -> bot          send to the group
+  -> read        decide whether this is a request at all
+  -> queue       FIFO, 30s dedup window, 50 deep
+  -> gate        per-portal concurrency limit
+  -> drive       one shared Chromium, one page per job
+  -> reply       format the result, decide who sees it
 ```
 
-### router {#router}
+### Read {#read}
 
-`internal/router` is pure text in, `*models.Request` out. It finds the nearest
-command and applies a similarity threshold, 0.85 for most checks and 0.75 for
-ticket creation. Below the threshold the message is ignored rather than guessed
-at.
+Intent parsing is pure text in, a request object out. It finds the nearest check in
+the message, attaches the nearest target to it, and applies a similarity threshold.
 
-### queue {#queue}
+Below the threshold the message is dropped rather than guessed at. See
+[Bot Commands](/docs/commands) for the threshold and what else gets dropped.
 
-`internal/queue` is a FIFO with a condition variable and a 30 second dedup
-window. Sending the same request twice inside that window runs it once, which is
-what happens when someone taps send twice on a phone.
+### Queue {#queue}
 
-### scraping {#scraping}
+A first in, first out list guarded by a condition variable, 50 entries deep.
 
-The facade in `scrape_service.go` owns one semaphore per portal. A request that
-arrives at a saturated portal waits; it does not open a second browser context.
+Two rules matter more than the ordering. The same request sent twice inside 30
+seconds runs once, because a double tap on a phone should not cost two portal
+sessions. And when the queue is full the oldest entry is dropped before the newest,
+so a burst evicts stale work rather than the request someone is waiting on.
 
-| Portal | Limit | Reason |
+### Gate {#gate}
+
+Each portal has its own limit, and a request arriving at a saturated portal waits.
+It does not open a second browser tab and hope.
+
+| Portal | Limit | Why that number |
 |---|---|---|
-| Gladius | 2 | Login is the fragile part |
-| ProMan | 1 | Rejects a second tab outright |
-| IBooster | 1 | A measurement overwrites the last reading |
+| Gladius | 2 | Login is the fragile part, not the reading |
+| ProMan | 1 | Single tab session, rejects a second outright |
+| IBooster | 1 | A measurement overwrites the previous reading |
 | ACSIS | 1 | Shared pool, one session at a time |
 | Finpay | 2 | Read only, safe to pair |
 
-### worker {#worker}
+These are not tuning knobs chosen for throughput. Each one is the most the portal
+behind it tolerates, and raising one produces a wrong answer rather than an error:
+two concurrent measurements means one reading is silently lost.
 
-`internal/bot/worker.go` formats the result and decides who sees it. The
-technician group gets the result and the screenshot. Everything technical goes to
-the debug group.
+### Drive {#drive}
 
-## Context and cancellation {#context}
+One Chromium, shared. Each job gets its own page, closed on every exit path.
 
-Every network call and every Playwright operation takes a `context.Context`
-carrying a task id. That id is what lets a log line be traced back to the request
-that produced it, which is the difference between debugging a five minute scrape
-and guessing at it.
+Every network call and every browser operation carries a deadline and a task id. The
+task id is what ties a line in the log back to the reply it produced, which is the
+difference between reading a five minute scrape and guessing at it.
 
-Browser contexts and pages are released with a deferred close on every path. A
-leaked Chromium context is the most expensive bug this shape of program can have.
+Browser contexts and pages are released with a deferred close. A leaked Chromium
+context is the most expensive bug this shape of program can have, so the browser
+also closes itself after five minutes with nothing running.
 
-## The captcha gate {#captcha}
+### Reply {#reply}
+
+This is the one place the two worlds touch.
+
+The technician group receives the result and the screenshot. Everything technical
+goes to a separate debug group. That split is the reason a captcha image never
+appears in front of a technician, and it is enforced in one place rather than
+scattered across the checks.
+
+## The VPN gate {#vpn}
+
+Every portal but one is internal, so the link going down is not an error condition,
+it is an ordinary event.
+
+The bot checks the link on a timer. After three consecutive failed probes it
+considers the link down, pauses the queue, and deletes its own waiting message from
+the group. Work in flight that hits a network error is dropped silently rather than
+reported, because a stack trace about a VPN is noise in a channel full of
+technicians. When the link returns, the queue resumes and the held work is released.
+
+The one exception is the billing check, which does report its network errors. See
+[Features](/docs/features).
+
+## The captcha lock {#captcha}
 
 Gladius needs a human at a predictable and inconvenient moment. The bot handles
-this with a single flight lock, so an expired session produces exactly one
-captcha request no matter how many jobs are queued behind it.
+this with a single flight lock, so an expired session produces exactly one captcha
+request no matter how many jobs are queued behind it.
 
 ```text
 session expired
-  -> acquire lock (one winner)
-  -> send captcha to the debug group
-  -> broadcast the result to every waiting job
-  -> release lock
+  -> one request wins the lock
+  -> captcha image sent to the debug group
+  -> everyone waiting blocks on the lock
+  -> the answer releases all of them together
+  -> lock released
 ```
+
+A naive version of this asks for a captcha per job, so twenty queued requests
+produce twenty captchas and twenty logins, each of which can expire the session
+again. The lock is what turns that into one.
+
+The answer is waited for generously, on purpose. A waiter is given far longer than a
+single attempt needs, because a waiter that times out halfway through a login and
+starts its own captcha is exactly the failure the lock exists to prevent.
 
 ## Logging {#logging}
 
-All logging goes through `internal/utils`, which writes a human readable line to
-the terminal and a JSON record to a daily file. Two filters run over everything:
+Every line goes to two places: a readable line in the terminal, and a JSON record in
+a dated file. The terminal line is padded into columns so it can be read by eye:
 
-- bot tokens, passwords, TOTP secrets and API hashes become `[REDACTED]`
-- any bare six digit sequence becomes `[REDACTED]`, because that is the shape of
-  a login code
+```text
+[15:04:05] [INFO] [a3f9c2d1] [gladius] session restored
+```
 
-The second filter is deliberately blunt. It will occasionally redact something
-innocuous, and that trade is worth making.
+The JSON file is one object per line with a fixed set of keys, so it can be filtered
+without parsing prose. See [Troubleshooting](/docs/troubleshooting) for how to read
+both.
 
-## Design decisions {#decisions}
+Secrets are scrubbed before anything is written: bot tokens, and any key named
+token, password, secret, pass, otp, api hash, totp or auth key, have their value
+replaced. Customer numbers are deliberately **not** scrubbed, because a log that
+hides the line it is about is much less useful when you are reading it at two in the
+morning.
 
-Every structural decision that changed the shape of the system has a record in
-`docs/adr/`. Two of them explain most of the behaviour you will notice:
+## Design decisions worth knowing {#decisions}
 
-- **ADR 0013** moved command naming to English canonical names while keeping the
-  old Indonesian terms as aliases, so nothing a user typed before broke.
-- **ADR 0014** made intent strict. Ambiguous messages are dropped rather than
-  interpreted, which is why the bot sometimes stays quiet when you expected a
-  reply.
+Three decisions explain most of the behaviour you will notice, and none of them
+look like accidents once you know why.
+
+**Check names are English, aliases are not.** The names were migrated to English
+canonical forms, and every Indonesian word people had always typed was kept as an
+alias. Nothing that worked before the rename stopped working. If a command you used
+to type goes quiet, the alias table is the first place to look.
+
+**Ambiguity is dropped, not interpreted.** A message that could plausibly be two
+things is silence. This is why the bot sometimes says nothing when you expected a
+reply, and it is a deliberate trade: a missed request costs one message sent again,
+a wrong one costs a portal session and the group's trust.
+
+**A reply may borrow a target, but only from a clean message.** Field work is
+conversational, and retyping an ODP is wasteful, so replying to a message that
+contains the target and then asking for the check works. The borrow is refused if
+your own message contains anything beyond the command, because that is the shape
+discussion takes, and a keyword inside discussion is not an instruction.

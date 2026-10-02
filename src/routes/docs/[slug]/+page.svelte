@@ -72,14 +72,16 @@
 		{#if entry}
 			<p class="mt-4 text-[0.9375rem] leading-relaxed text-content-muted">{entry.description}</p>
 			<!--
-				Provenance is a callout rather than another grey line. It is the one
-				thing on the page that tells a reader how much to trust the rest, and
-				burying it under the description meant nobody checked.
+				What the page leaves the reader able to do.
+
+				This used to name the repository file the page was written from and
+				tell the reader that the repository wins on any disagreement. Both
+				halves were wrong for a reader without repository access: there was
+				nothing to open, and no authority to defer to. Stating the outcome
+				instead gives the reader something to check themselves, which is
+				what the earlier version failed to do.
 			-->
-			<p class="source">
-				Written from <code>{entry.source.path}</code> in the bot repository. Where this page and the
-				repository disagree, the repository wins.
-			</p>
+			<p class="source">{entry.outcome}.</p>
 		{/if}
 	</header>
 
@@ -121,11 +123,6 @@
 		font-size: var(--text-small);
 		line-height: 1.6;
 		color: color-mix(in srgb, var(--color-content) 68%, transparent);
-	}
-
-	.source code {
-		font-family: var(--font-mono);
-		color: var(--color-content);
 	}
 
 	.pager {

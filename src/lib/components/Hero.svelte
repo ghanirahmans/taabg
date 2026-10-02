@@ -30,6 +30,12 @@
 					screenshot back into the group.
 				</p>
 
+				<p class="note">
+					A field technician gets a cabinet code and has to answer four questions about it. That is
+					currently five browser tabs and twenty minutes of copying numbers between systems that do
+					not talk to each other. This is the part that automates.
+				</p>
+
 				<div class="actions">
 					<a href={primaryHref} class="btn-primary">
 						{primaryLabel}
@@ -90,6 +96,22 @@
 		font-family: var(--font-mono);
 		font-size: 0.9375em;
 		color: var(--color-content);
+	}
+
+	/*
+	 * The problem statement, one tier quieter than the lead and separated by a
+	 * hairline. It sits below the lead rather than above the headline because the
+	 * hero already carries two ideas, and a third block above the fold is what
+	 * left the previous build with nowhere for the eye to land.
+	 */
+	.note {
+		margin-top: 1.75rem;
+		padding-left: 1.25rem;
+		max-width: 44ch;
+		border-left: 1px solid var(--color-base-300);
+		font-size: var(--text-support);
+		line-height: 1.65;
+		color: color-mix(in srgb, var(--color-content) 62%, transparent);
 	}
 
 	.actions {

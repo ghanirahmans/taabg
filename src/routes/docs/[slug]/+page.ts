@@ -26,7 +26,7 @@ export const load: PageLoad = async ({ params }) => {
 		slug: entry.slug,
 		title: entry.title,
 		section: entry.section,
-		source: entry.source,
+		outcome: entry.outcome,
 		content: module.default
 	};
 };

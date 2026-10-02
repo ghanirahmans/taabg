@@ -6,23 +6,23 @@
  */
 
 const SNIPPETS = {
-	install: `taabg doctor      # check the install
-taabg login tele  # phone, code, 2FA
+	install: `taabg doctor      # six checks, tells you what is missing
+taabg login tele  # phone, then code, then 2FA
 taabg run         # foreground, --debug for more`,
 
-	service: `taabg start      # background service
-taabg status     # 0 running, 3 stopped
+	service: `taabg start      # background
+taabg status     # exit code: 0 running, 3 stopped
 taabg logs -f    # follow today's log
-taabg restart    # stop then start`,
+taabg restart    # stop, then start`,
 
-	scrape: `# One ODP, both portals.
-umas ODP-MDC-FAY/015
+	scrape: `# Every ODP behind a cabinet, measured.
+umas ODP-XXX-YY/001
 
-# Customer radius profile.
-embassy 111209141110
+# One line's profile from the exchange.
+embassy 100000000011
 
-# Billing.
-tolong cek payment 111213094876`
+# Has this customer paid?
+tolong cek tagihan 100000000011`
 } as const;
 
 export function load() {

@@ -89,12 +89,48 @@ in `package.json` `imports` and mirrored in `tsconfig.json` `paths` so
    Without one the heading renders but never parses, so the page loses its table
    of contents and its search entries. This is the single easiest mistake to make
    here and it fails silently.
-2. Add an entry to `DOC_ENTRIES` in `src/lib/docs/manifest.ts`, with `order`,
-   `source.path` pointing at the file it was written from, and `keywords` that
-   include the words an operator would actually type.
+2. Add an entry to `DOC_ENTRIES` in `src/lib/docs/manifest.ts`, with `order`, an
+   `outcome` sentence, and `keywords` that include the words an operator would
+   actually type.
 3. `npm run check && npm run build`.
 
 The sidebar, search, prev/next and prerendering pick it up automatically.
+
+## The repository is private, so the documentation has to stand alone
+
+The bot's source repository is not public. Every page here is written for a reader
+who has no access to it, which rules out a whole category of what documentation
+usually leans on:
+
+- **No provenance citations.** Pages used to carry `source.path` and the footer
+  said "where a page and the repository disagree, the repository wins". For anyone
+  outside the organisation there was nothing to open and no authority to defer to,
+  so the sentence only weakened the page it sat under. Each entry now carries an
+  `outcome` instead: what the reader can do after reading it.
+- **No internal references.** A Go package path, a design record number, an
+  architecture document title: all unreadable, and all presented as if they were
+  authority. Where the fact genuinely lives in the source and cannot be shown, such
+  as the exact region the screenshot crop is locked to, the page says so.
+- **Nothing from the private documents that should not be published at all.** No
+  real customer numbers, site codes, ticket numbers, internal gateways, or group
+  names. Sample identifiers use one documented convention, `1000000000NN` for a No
+  Internet and `ODP-XXX-YY/001` for an ODP, which teaches the shape and cannot
+  belong to a customer.
+- **Every claim is observable from outside the tool**, or it is marked as not
+  being so. A portal's concurrency limit, a timeout, a log format, a command: all
+  things a reader can check by running it.
+
+A reader who cannot picture the product cannot use the documentation, so the pages
+lead with a scene rather than a definition. `introduction.md` shows a request, the
+acknowledgement, and the reply before it explains any of it, and links the
+vocabulary page at the point the jargon first appears rather than at the end.
+
+`tmp-verify/content.mjs` enforces all of this and is worth running after any copy
+change. It found, on its first run against the rewritten pages, a Go package path
+rendered as a visible label in the hero's log band, a real group name in the
+configuration example, the repository-wins sentence still in the built output after
+the visible callout had been replaced, and the project author's personal website
+still reachable as a default probe URL.
 
 ## Guards have to be able to fail
 
@@ -116,7 +152,18 @@ produced a false green here:
    what the WAI-ARIA pattern wants anyway.
 3. **Check every page, not one representative page.** Every heading-id bug escaped
    because each guard reached for `architecture.html`. Comparing parsed against
-   rendered ids on all seven pages is what found it.
+   rendered ids on all pages is what found it.
+4. **Derive a budget, do not remember one.** The docs code column was budgeted at a
+   hardcoded 78 characters, which is more conservative than the real figure of 84
+   and flagged a line that fits. A guard that cries wolf on correct content is a
+   guard people learn to ignore.
+5. **Assert a fact where it is written.** Portal attribution is checked by reading
+   the `Backs` row inside each portal's own markdown section, not by regex
+   proximity across the rendered page. Collapsing whitespace for a text search
+   turns `[^\n]*` into `[^\s\S]*`, which matches almost anything.
+6. **Read the whole built output, not only the visible DOM.** The
+   "repository wins" sentence survived in the serialised page payload after the
+   rendered callout had been replaced, so a text-only check reported it as fixed.
 
 When a check cannot measure something, it should say `unmeasurable` rather than
 defaulting to a value that passes.

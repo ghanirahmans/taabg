@@ -13,75 +13,106 @@
 export interface DocEntry extends NavItem {
 	description: string;
 	order: number;
-	/** Canonical document this page was written from. */
-	source: { path: string; label: string };
+	/** What a reader can do after this page. The only useful kind of provenance
+	 *  for a page whose source repository they cannot open. */
+	outcome: string;
 	/** Extra search terms, including the Indonesian words operators type. */
 	keywords: string[];
 }
 
+/*
+ * These pages are written from the bot's source repository, which is private and
+ * licensed for internal use. Nothing here points at a file the reader could open,
+ * because there is nothing for them to open: `source.path` used to name an
+ * `internal/...` Go file and told the reader to check it, which was advice that
+ * could only be followed by someone already inside the organisation.
+ *
+ * Each entry therefore carries `outcome`, a sentence about what the page leaves the
+ * reader able to do, and every claim is either observable from outside the tool or
+ * drawn from something the tool prints. Where a fact genuinely lives in the source
+ * and cannot be shown, such as the exact region the screenshot crop is locked to,
+ * the page says so instead of implying it is showing you.
+ */
 export const DOC_ENTRIES: DocEntry[] = [
 	{
 		title: 'Introduction',
 		slug: 'introduction',
 		section: 'Getting Started',
 		order: 1,
-		description: 'What taabg automates across Telkom assurance portals, and who it is for.',
-		source: { path: 'README.md', label: 'README.md' },
-		keywords: ['overview', 'about', 'ringkasan', 'apa itu', 'bot', 'telegram']
+		description: 'What taabg does, what a request looks like in the group, and where it runs.',
+		outcome: 'Describe what the bot does to a colleague who has never seen it.',
+		keywords: ['overview', 'about', 'ringkasan', 'apa itu', 'bot', 'telegram', 'gambaran']
+	},
+	{
+		title: 'Vocabulary',
+		slug: 'vocabulary',
+		section: 'Getting Started',
+		order: 2,
+		description: 'The access network terms the bot uses, and the shape of each identifier.',
+		outcome: 'Read an ODP code, a No Internet, LOS or FUP without guessing.',
+		keywords: [
+			'istilah', 'glossary', 'kamus', 'odp', 'onu', 'ont', 'los',
+			'fup', 'speedy', 'no internet', 'unspec', 'acsis', 'gladius',
+			'proman', 'ibooster', 'finpay', 'totp', 'altcha', 'splitter',
+			'olt', 'padam', 'serial'
+		]
 	},
 	{
 		title: 'Installation',
 		slug: 'installation',
 		section: 'Getting Started',
-		order: 2,
-		description: 'Install the binary, write .env, authenticate Telegram, and confirm health.',
-		source: { path: 'docs/INSTALLATION.md', label: 'docs/INSTALLATION.md' },
-		keywords: ['install', 'setup', 'installer', 'env', 'login', 'doctor', 'path', 'instalasi']
-	},
-	{
-		title: 'Architecture',
-		slug: 'architecture',
-		section: 'Core Concepts',
 		order: 3,
-		description: 'Layer boundaries, the request pipeline, and why scraping never imports Telegram.',
-		source: { path: 'docs/architecture.md', label: 'docs/architecture.md' },
-		keywords: ['architecture', 'layer', 'clean architecture', 'pipeline', 'design', 'arsitektur']
+		description: 'Install the executable, write the configuration file, authenticate, and confirm health.',
+		outcome: 'Get it installed, configured and answering on one machine.',
+		keywords: ['install', 'setup', 'installer', 'env', 'login', 'doctor', 'path', 'instalasi', 'konfigurasi']
 	},
 	{
 		title: 'Features',
 		slug: 'features',
 		section: 'Core Concepts',
 		order: 4,
-		description: 'The five portals, the checks each one backs, and the workarounds they need.',
-		source: { path: 'docs/features/README.md', label: 'docs/features/' },
-		keywords: ['features', 'portal', 'gladius', 'proman', 'ibooster', 'acsis', 'finpay', 'fitur']
+		description: 'The seven checks, the five portals behind them, and why each portal has its own limit.',
+		outcome: 'Pick the right check for a question, and predict how it will behave.',
+		keywords: ['features', 'portal', 'gladius', 'proman', 'ibooster', 'acsis', 'finpay', 'fitur', 'cek']
+	},
+	{
+		title: 'Architecture',
+		slug: 'architecture',
+		section: 'Core Concepts',
+		order: 5,
+		description: 'How a request moves through the system, and why scraping never depends on chat.',
+		outcome: 'Predict what a change to one part does to the rest.',
+		keywords: ['architecture', 'layer', 'pipeline', 'design', 'arsitektur', 'queue', 'antrian', 'semaphore']
 	},
 	{
 		title: 'Basic Usage',
 		slug: 'usage',
 		section: 'Guides',
-		order: 5,
+		order: 6,
 		description: 'Ask for a check in plain language, or run it from the browser.',
-		source: { path: 'docs/HANDBOOK.md', label: 'docs/HANDBOOK.md' },
-		keywords: ['usage', 'how to', 'request', 'web cek', 'dashboard', 'cara', 'pakai']
+		outcome: 'Ask for a check without learning any syntax, and read the reply.',
+		keywords: ['usage', 'how to', 'request', 'web cek', 'dashboard', 'cara', 'pakai', 'gimana']
 	},
 	{
 		title: 'Bot Commands',
 		slug: 'commands',
 		section: 'Guides',
-		order: 6,
-		description: 'Direct-reply commands, the prefix, and the phrases the bot ignores on purpose.',
-		source: { path: 'internal/command/catalog.go', label: 'internal/command/catalog.go' },
-		keywords: ['command', 'prefix', 'help', 'status', 'ping', 'login', 'perintah', 'command catalog']
+		order: 7,
+		description: 'The short catalog of direct commands, and the much longer list of things it ignores.',
+		outcome: 'Tell silence apart from a fault.',
+		keywords: ['command', 'prefix', 'help', 'status', 'ping', 'perintah', 'alias', 'diam']
 	},
 	{
 		title: 'Troubleshooting',
 		slug: 'troubleshooting',
 		section: 'Guides',
-		order: 7,
-		description: 'Captcha loops, VPN drops, saturated portals, and how to read the log.',
-		source: { path: 'docs/OPERATIONS.md', label: 'docs/OPERATIONS.md' },
-		keywords: ['troubleshooting', 'error', 'captcha', 'vpn', 'stuck', 'semaphore', 'masalah', 'error']
+		order: 8,
+		description: 'Silence, captcha loops, a paused queue, saturated portals, and how to read the log.',
+		outcome: 'Diagnose a failure from the log instead of restarting and hoping.',
+		keywords: [
+			'troubleshooting', 'error', 'captcha', 'vpn', 'stuck', 'semaphore',
+			'masalah', 'log', 'diagnosa', 'antrian penuh'
+		]
 	}
 ];
 

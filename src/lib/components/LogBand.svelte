@@ -51,7 +51,14 @@
 				</button>
 			{/each}
 		</div>
-		<span class="codeblock-lang shrink-0">internal/utils/logger.go</span>
+		<!--
+			The format label, not a source citation. This said
+			`internal/utils/logger.go`, which pointed a reader at a file in a private
+			repository while sitting in the most prominent position in the component.
+			The format is the claim worth making, and a reader can check it by running
+			the tool.
+		-->
+		<span class="codeblock-lang shrink-0">console output</span>
 	</div>
 
 	<!--

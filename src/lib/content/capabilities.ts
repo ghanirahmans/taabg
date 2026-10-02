@@ -1,8 +1,11 @@
-/**
- * Every value on this page is transcribed from the repository: the portal list
- * and its semaphore limits from AGENTS.md section 2, the fuzzy thresholds from
- * internal/keywords, the command shapes from docs/HANDBOOK.md. Nothing here is
- * an invented capability or an invented number.
+/*
+ * Every value on the landing page is something a reader could verify by running the
+ * tool: a portal name, a concurrency limit the portal enforces, a check name, a
+ * timeout, or a phrase the bot prints.
+ *
+ * Nothing here cites a source file or a design record number. The bot's repository
+ * is private, so `internal/router` and `ADR 0014` were references a reader could not
+ * follow, and they took up the space where an explanation belonged.
  */
 
 export interface Portal {
@@ -11,7 +14,7 @@ export interface Portal {
 	role: string;
 	/** Checks reachable through it. */
 	checks: string[];
-	/** Parallel sessions allowed, from the AGENTS.md semaphore table. */
+	/** Parallel sessions the portal tolerates. */
 	limit: number;
 	/** Why the limit is what it is. */
 	limitReason: string;
@@ -20,80 +23,81 @@ export interface Portal {
 export const PORTALS: Portal[] = [
 	{
 		name: 'Gladius',
-		role: 'Customer radius profile',
+		role: 'Customer line profile and signal',
 		checks: ['EMBASSY'],
 		limit: 2,
-		limitReason: 'Two sessions, because login is the fragile part'
+		limitReason: 'Login is the fragile part, not the reading'
 	},
 	{
 		name: 'ProMan',
 		role: 'ODP lookup and ticket creation',
 		checks: ['UMAS', 'CREATE TICKET'],
 		limit: 1,
-		limitReason: 'Strict single tab, the portal rejects a second one'
+		limitReason: 'Single tab session, rejects a second outright'
 	},
 	{
 		name: 'IBooster',
-		role: 'ONU measurement and Jam Mati detection',
+		role: 'ONU measurement and dead line detection',
 		checks: ['UMAS', 'JAM MATI'],
 		limit: 1,
-		limitReason: 'Measurement is destructive to the previous reading'
+		limitReason: 'A measurement overwrites the previous reading'
 	},
 	{
 		name: 'ACSIS',
-		role: 'ONT serial number check',
-		checks: ['ACS ONT'],
+		role: 'ONT hardware and data allowance',
+		checks: ['ACS ONT', 'CEK FUP'],
 		limit: 1,
-		limitReason: 'Shared ACS pool, one session at a time'
+		limitReason: 'Shared pool, one session at a time'
 	},
 	{
 		name: 'Finpay',
-		role: 'Indihome billing',
+		role: 'IndiHome billing',
 		checks: ['CEK PAYMENT'],
 		limit: 2,
-		limitReason: 'Read-only, safe to pair'
+		limitReason: 'Read only, and needs no credentials at all'
 	}
 ];
 
-/**
- * The request path is a real sequence, so it is numbered. Stages are named
- * after the Go packages that implement them, not invented step titles.
+/*
+ * The request path is a real sequence, so it is numbered. Each stage names what it
+ * is responsible for rather than the package that implements it, because the package
+ * names are only meaningful to someone who has the source.
  */
 export interface PipelineStage {
 	stage: string;
-	package: string;
+	/** What this stage is answerable for. */
+	responsibility: string;
 	detail: string;
 }
 
 export const PIPELINE: PipelineStage[] = [
 	{
 		stage: 'Read',
-		package: 'router',
-		detail: 'Nearest-command match on the message, noise filtered out first'
+		responsibility: 'Is this even a request',
+		detail: 'Nearest-check match on the message, noise and negation filtered out first'
 	},
 	{
 		stage: 'Queue',
-		package: 'queue',
-		detail: 'FIFO with a 30s dedup window so a double tap runs once'
+		responsibility: 'Wait here',
+		detail: 'First in first out, 50 deep, with a 30s window that runs a double tap once'
 	},
 	{
 		stage: 'Gate',
-		package: 'scraping',
-		detail: 'Per-portal semaphore blocks work at capacity instead of overloading'
+		responsibility: 'Wait here too',
+		detail: 'Per-portal limit blocks work at capacity instead of overloading the portal'
 	},
 	{
 		stage: 'Drive',
-		package: 'browser',
+		responsibility: 'Do the work',
 		detail: 'One shared Chromium, a page per job, closed on the way out'
 	},
 	{
 		stage: 'Reply',
-		package: 'worker',
-		detail: 'Result and screenshot to the group, errors to the debug group'
+		responsibility: 'Say what happened',
+		detail: 'Result and screenshot to the group, everything technical to the debug group'
 	}
 ];
 
-/** Direct-reply commands from internal/command/catalog.go (ADR 0013). */
 export interface DirectCommand {
 	command: string;
 	aliases: string;
@@ -101,41 +105,43 @@ export interface DirectCommand {
 }
 
 export const DIRECT_COMMANDS: DirectCommand[] = [
-	{ command: 'taabg help', aliases: 'bantuan, menu, ?', does: 'List every direct-reply command' },
+	{ command: 'taabg help', aliases: 'bantuan, menu, ?', does: 'List every direct command' },
 	{ command: 'taabg status', aliases: 'monitoring, dashboard', does: 'System and queue snapshot' },
 	{ command: 'taabg ping', aliases: '', does: 'Connection test, replies pong' },
-	{ command: 'taabg login gladius', aliases: 'signin', does: 'Start Gladius login and send the captcha' },
+	{ command: 'taabg login gladius', aliases: 'signin', does: 'Start a Gladius login and send the captcha' },
 	{ command: 'taabg hello', aliases: 'hi, hey, halo, hai', does: 'Greet the bot back' }
 ];
 
-/**
+/*
  * The filter is the part of this bot nobody else has: it stays silent on almost
- * everything. Each row is a rule from AGENTS.md or an ADR, not a feature claim.
+ * everything. Each row below is a rule the tool actually applies, phrased as what it
+ * means for a person in the group rather than as a citation.
  */
 export interface Guardrail {
 	rule: string;
-	source: string;
+	/** The failure it prevents, which is the reason the rule exists. */
+	why: string;
 }
 
 export const GUARDRAILS: Guardrail[] = [
 	{
-		rule: 'Ordinary chat, ticket-closing templates and negated requests are ignored. Intent has to be explicit.',
-		source: 'ADR 0014'
+		rule: 'A keyword inside a sentence is not a request. So is a check name with no target, a negated one, or a message that reads like a case report.',
+		why: 'A wrong answer costs a portal session and the group trust'
 	},
 	{
-		rule: 'A reply that borrows its target from another message must be a clean command, so a discussion mentioning a keyword stays quiet.',
-		source: 'ADR 0036'
+		rule: 'A reply may borrow its target from the message it answers, but only if the reply itself is nothing but the command.',
+		why: 'Discussion and instructions look identical in a busy group'
 	},
 	{
-		rule: 'When the VPN drops, the bot deletes its own waiting message and pauses the queue rather than reporting an error to the group.',
-		source: 'ADR 0002'
+		rule: 'When the VPN drops the bot deletes its own waiting message and pauses the queue instead of reporting an error to the group.',
+		why: 'Four of five portals are internal, and a link outage is ordinary'
 	},
 	{
-		rule: 'Bot tokens, passwords, TOTP secrets and six digit codes are scrubbed to [REDACTED] before anything reaches a log.',
-		source: 'AGENTS.md 2.4'
+		rule: 'Bot tokens, passwords, second factor secrets and API hashes are replaced before anything reaches a log.',
+		why: 'The log outlives the terminal it was written in'
 	},
 	{
-		rule: 'An expired Gladius session asks the debug group for a captcha exactly once, no matter how many jobs are waiting.',
-		source: 'AGENTS.md 2.2'
+		rule: 'An expired Gladius session asks the debug group for a captcha exactly once, no matter how many jobs are waiting behind it.',
+		why: 'Twenty queued jobs asking separately would expire the session again'
 	}
 ];

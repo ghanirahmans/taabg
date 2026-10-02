@@ -40,13 +40,22 @@
 		</div>
 
 		<!--
-			Provenance, not links: these paths live in the Go repository and have no
-			public URL, so naming the canonical source beats inventing one.
+			Provenance, restated honestly.
+
+			This said the pages were written from the repository documentation and
+			that the repository wins on any disagreement. Both halves were aimed at a
+			reader inside the organisation. For anyone else there is no repository to
+			open and no authority to defer to, so the sentence only weakened the
+			pages it appeared under.
+
+			What it can honestly say is what it now says: the pages are written to be
+			read without the source, which is a commitment the reader can hold it to.
 		-->
 		<div class="flex flex-col gap-2 border-t border-base-300 py-8 text-[0.8125rem] leading-relaxed text-content-muted md:flex-row md:items-center md:justify-between">
 			<p>
-				Written from the repository documentation. Where a page and the repository disagree, the
-				repository wins.
+				These pages are written to be read on their own. The bot's own repository is not public, so
+				nothing here needs it, and anything you cannot verify from the tool's output is marked as
+				such.
 			</p>
 			<p class="font-mono">{year} taabg</p>
 		</div>

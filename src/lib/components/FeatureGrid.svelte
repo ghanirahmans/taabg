@@ -5,14 +5,18 @@
 <!--
 	Uniform treatment is deliberate here. These five rules are a homogeneous list
 	with no hierarchy between them, so giving one of them more weight would imply
-	a ranking that does not exist. The source ADR leads each one because the claim
-	is only interesting if it is traceable.
+	a ranking that does not exist.
+
+	Each rule leads with the failure it prevents rather than a citation. The rules
+	used to carry a design record number as their heading, which was a reference to
+	a file in a private repository: unreadable to a visitor, and no more convincing
+	than the rule itself. The reason is the part that makes a rule worth believing.
 -->
 <ul class="rules">
 	{#each GUARDRAILS as guardrail (guardrail.rule)}
 		<li>
-			<span class="rule-source">{guardrail.source}</span>
 			<p class="rule-text">{guardrail.rule}</p>
+			<p class="rule-why">{guardrail.why}</p>
 		</li>
 	{/each}
 </ul>
@@ -40,18 +44,25 @@
 		border-bottom: 1px solid var(--color-base-300);
 	}
 
-	.rule-source {
-		font-family: var(--font-mono);
-		font-size: var(--text-micro);
-		letter-spacing: 0.04em;
-		color: var(--color-primary);
-	}
-
 	.rule-text {
-		margin-top: 0.875rem;
 		max-width: 46ch;
 		font-size: var(--text-body);
 		line-height: 1.6;
 		color: color-mix(in srgb, var(--color-content) 85%, transparent);
+	}
+
+	/*
+	 * The reason, one tier quieter and in the accent. It is subordinate to the rule
+	 * above it, and a hairline on the left separates the two without spending a
+	 * second block of spacing.
+	 */
+	.rule-why {
+		margin-top: 1.25rem;
+		padding-left: 1rem;
+		max-width: 42ch;
+		border-left: 1px solid var(--color-base-300);
+		font-size: var(--text-small);
+		line-height: 1.6;
+		color: var(--color-primary);
 	}
 </style>

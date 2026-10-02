@@ -12,7 +12,7 @@
 	<title>taabg, Telkom access assurance from the group chat</title>
 	<meta
 		name="description"
-		content="taabg runs Gladius, ProMan, IBooster, ACSIS and Finpay checks from Telegram or a browser dashboard, and posts results with a screenshot back to the group. One Go binary, no runtime dependencies."
+		content="taabg runs Gladius, ProMan, IBooster, ACSIS and Finpay checks from Telegram or a browser dashboard, and posts results with a screenshot back to the group. One Go executable, no runtime to install."
 	/>
 </svelte:head>
 
@@ -40,9 +40,9 @@
 			<h2>Five portals, one browser session</h2>
 			<p class="standfirst">
 				Each portal gets its own concurrency limit, because the reasons differ. ProMan rejects a
-				second tab outright, Gladius breaks when its session expires, and IBooster overwrites the
-				previous reading when a measurement runs twice. The bot queues work instead of forcing it
-				through.
+				second tab outright, IBooster overwrites the previous reading when a measurement runs
+				twice, and ACSIS hands out one session at a time. The bot queues work rather than forcing it
+				through, so a limit shows up as a wait rather than as a wrong answer.
 			</p>
 		</header>
 
@@ -56,8 +56,8 @@
 				<span class="figure-label">checks implemented</span>
 			</div>
 			<div class="figure figure-accent">
-				<span class="figure-value">0</span>
-				<span class="figure-label">runtime dependencies</span>
+				<span class="figure-value">1</span>
+				<span class="figure-label">executable to install</span>
 			</div>
 		</div>
 
@@ -114,7 +114,7 @@
 					<span class="step-number">{String(i + 1).padStart(2, '0')}</span>
 					<div>
 						<h3>{stage.stage}</h3>
-						<p class="step-package">{stage.package}</p>
+						<p class="step-package">{stage.responsibility}</p>
 						<p class="step-detail">{stage.detail}</p>
 					</div>
 				</li>
@@ -201,8 +201,9 @@
 		<div class="docs-intro">
 			<h2>Documentation</h2>
 			<p class="standfirst">
-				Seven pages, written from the repository documentation. Press
-				<kbd>Ctrl</kbd><kbd>K</kbd> to search them from anywhere on the site.
+				{DOC_ENTRIES.length} pages, and each one stands on its own. The bot's own repository is
+				private, so nothing here asks you to consult it. Press <kbd>Ctrl</kbd><kbd>K</kbd> to search
+				from anywhere on the site.
 			</p>
 		</div>
 
@@ -449,9 +450,10 @@
 		color: color-mix(in srgb, var(--color-content) 50%, transparent);
 	}
 
+	/* The one-line job of this stage. It was the Go package name before, which
+	 * only meant something to someone holding the source. */
 	.step-package {
 		margin-top: 0.25rem;
-		font-family: var(--font-mono);
 		font-size: var(--text-small);
 		color: var(--color-primary);
 	}
