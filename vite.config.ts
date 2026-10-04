@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { highlight } from './src/lib/highlight.js';
 import { remarkHeadingIds } from './src/lib/remark-headings.js';
+import { remarkTables } from './src/lib/remark-tables.js';
 
 /**
  * A fenced code block in a docs page is highlighted at compile time and emitted
@@ -57,8 +58,10 @@ export default defineConfig({
 				mdsvex({
 					extensions: ['.md', '.svx'],
 					// mdsvex emits no heading ids, so the table of contents would have
-					// nothing to anchor to without this.
-					remarkPlugins: [remarkHeadingIds],
+					// nothing to anchor to without this. The table plugin runs after it so
+					// that heading ids are already in place when a table is wrapped, which
+					// keeps the two independent of each other.
+					remarkPlugins: [remarkHeadingIds, remarkTables],
 					highlight: { highlighter: wrapBlock }
 				})
 			],

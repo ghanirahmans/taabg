@@ -86,7 +86,7 @@
 	}
 </script>
 
-<div class="toc-root" bind:this={root}>
+<div class="toc-root" class:toc-root-panel={collapsible} bind:this={root}>
 	{#if collapsible}
 		<button
 			type="button"
@@ -134,7 +134,13 @@
 		{/each}
 	</ul>
 
-	{#if headings.length > 3}
+	{#if headings.length > 3 && !collapsible}
+		<!--
+			Desktop rail only. In the collapsible form this panel is pinned to the top
+			of the screen for the whole read, and the link measured 64px of that: a 44px
+			target plus 20px of margin for a control that duplicates a thumb swipe. It
+			took the sticky panel to 192px on a 780px screen, a quarter of the viewport.
+		-->
 		<a href="/docs/{slug}" class="to-top">
 			<ArrowUp size={13} strokeWidth={2} aria-hidden="true" />
 			Back to top
@@ -145,6 +151,18 @@
 <style>
 	.toc-root {
 		font-size: var(--text-support);
+	}
+
+	/*
+	 * The collapsible form carries no surface of its own.
+	 *
+	 * It used to add a background and 0.5rem of padding, which was needed when the
+	 * sticky panel was this component alone. Now the surrounding `.toc-pair` provides
+	 * both, and repeating them here put 16px of dead padding inside an already padded
+	 * panel, on a screen where every vertical pixel is contested.
+	 */
+	.toc-root-panel {
+		min-width: 0;
 	}
 
 	.label {
@@ -220,10 +238,16 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.375rem;
+		/*
+		 * 44px, not the 32px it measured at on a phone. This is a control, not a
+		 * line of prose: it is the only way back to the top of a 9000px page, and a
+		 * thumb misses 32px far more often than it misses 44px.
+		 */
+		min-height: 44px;
 		margin-top: 1.25rem;
 		padding: 0.375rem 0;
 		font-size: var(--text-small);
-		color: color-mix(in srgb, var(--color-content) 60%, transparent);
+		color: color-mix(in srgb, var(--color-content) 65%, transparent);
 		text-decoration: none;
 	}
 

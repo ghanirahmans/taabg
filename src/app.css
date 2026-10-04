@@ -154,7 +154,16 @@
 	}
 
 	h3 {
-		font-size: var(--text-body);
+		/*
+		 * `--text-lead`, not `--text-body`.
+		 *
+		 * At the body size an h3 was 16px/600 against 16px/400 body text, so weight
+		 * was the only thing separating a subheading from a paragraph. It read as a
+		 * heading because of the space above it, not because of how it looked. The
+		 * scale already had the step between body and title, and it was not being
+		 * used here.
+		 */
+		font-size: var(--text-lead);
 		line-height: var(--leading-snug);
 	}
 
@@ -287,6 +296,32 @@
 		line-height: var(--leading-prose);
 	}
 
+	/*
+	 * Reading measure.
+	 *
+	 * Measured in a browser, the prose column was 96 characters wide on every one of
+	 * the 28 paragraphs on a page. Comfortable measure is 45 to 75, and past about
+	 * 80 the eye loses the return sweep and starts skipping lines. That is the
+	 * single biggest reason a page reads as tiring rather than as neutral.
+	 *
+	 * `ch` is the width of a zero, which is what a character column actually means,
+	 * so this tracks the font rather than assuming an average character width.
+	 *
+	 * Headings are included so they align with the text they introduce. Tables, code
+	 * frames and the log band are deliberately left out: a five column table at 68ch
+	 * wraps into a mess, and the data on this site is allowed to be wider than the
+	 * prose describing it.
+	 */
+	.prose p,
+	.prose ul,
+	.prose ol,
+	.prose blockquote,
+	.prose h2,
+	.prose h3,
+	.prose h4 {
+		max-width: 68ch;
+	}
+
 	.prose > * + * {
 		margin-top: 1.5rem;
 	}
@@ -360,8 +395,17 @@
 		width: 100%;
 		border-collapse: collapse;
 		font-size: var(--text-support);
-		display: block;
-		overflow-x: auto;
+		/*
+		 * `display: block` used to sit here with `overflow-x: auto`, which is the
+		 * long-standing scrollable-table hack. It works, and it is why every docs table
+		 * on a phone needed a sideways swipe: the table element was being scrolled
+		 * instead of a wrapper, so the column header scrolled out of sight while the
+		 * reader read the last column. It also drops the table out of the table
+		 * structure assistive tech builds, which is a worse cost than the swipe.
+		 *
+		 * `remarkTables` now wraps every docs table in `.table-scroll`, and that frame
+		 * is what scrolls. The table is a table again.
+		 */
 	}
 
 	.prose th,
@@ -402,6 +446,149 @@
 	}
 }
 
+/* ===================================================================== tables */
+
+/*
+ * The scroll frame around every table, on the landing page and in the docs.
+ *
+ * It carries no surface of its own. The docs tables are delimited by their own cell
+ * borders and a second border around the outside would be one line too many; the
+ * landing tables ask for a panel surface and add it in `+page.svelte`, where the
+ * choice belongs.
+ *
+ * The container name is what lets the card mode below switch on the width of the
+ * frame rather than the width of the window. A viewport query cannot see that a table
+ * in a narrow column on a wide screen has the same problem as one on a phone.
+ */
+.table-scroll {
+	container-type: inline-size;
+	container-name: tableframe;
+	overflow-x: auto;
+}
+
+/*
+ * There are no width floors on these tables any more.
+ *
+ * A floor is a declaration that the table refuses to be narrower than X, which makes
+ * the frame scroll when the frame is narrower than X. Both tables here used to carry
+ * one: 44rem for the five column portals table, 22rem for the commands table. The floor
+ * and the frame's `overflow-x: auto` then had to agree at every width, in two files,
+ * and they drifted. The landing tables scrolled sideways by 409px on a 360px screen
+ * because the floor outlived the `min-width: 0` that was meant to lift it.
+ *
+ * Without a floor a table shrinks to fit and wraps its cells, and the frame only ever
+ * scrolls if the content genuinely cannot compress. That is the right default for a
+ * documentation site: there is now no nested horizontal scrolling at all.
+ */
+
+/*
+ * When the frame gets narrower than a table is worth reading, the rows stack.
+ *
+ * Measured at 360px on the landing page: the portals table is five columns and 704px
+ * wide inside a 297px frame, so reaching "Why that limit", the column the section
+ * exists for, meant a sideways swipe. In the docs, the commands and vocabulary tables
+ * were 97px and 53px short of fitting, which is enough to hide the last column
+ * entirely. A swipe inside a swipe-scrolling page is not something anyone discovers.
+ *
+ * Each cell carries its column name as `data-label`, written by `remarkTables` for the
+ * docs and by hand on the landing tables, so the reader never has to remember which
+ * column they are looking at.
+ *
+ * The threshold is 34rem, and it was 45rem before. That number was tuned for the five
+ * column table and applied to every table, which turned the three column commands table
+ * into a stack of cards inside a 625px track on a 1440px screen. A card list is the
+ * right answer in a phone frame and the wrong one in a desktop column, and one
+ * threshold cannot tell those apart. 34rem sits below every desktop track on this site
+ * and above every phone frame.
+ */
+@container tableframe (max-width: 34rem) {
+	.table-scroll .data,
+	.table-scroll .data tbody,
+	.table-scroll .data tr,
+	.table-scroll .data td {
+		display: block;
+		width: 100%;
+	}
+
+	/*
+	 * The header row leaves the flow but stays in the accessibility tree, so the column
+	 * names still reach a screen reader and the caption still describes a table. Out of
+	 * the table layout entirely, which also stops a clipped 1px header row from
+	 * reserving height.
+	 */
+	.table-scroll .data thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	/* Rows are separated by a rule, since the frame is already the surface. */
+	.table-scroll .data tbody tr + tr th,
+	.table-scroll .data tbody tr + tr td {
+		border-top: 1px solid var(--color-base-300);
+	}
+
+	.table-scroll .data tbody tr:last-child > :last-child {
+		padding-bottom: 0.875rem;
+	}
+
+	.table-scroll .data tbody th {
+		white-space: normal;
+	}
+
+	/*
+	 * The first cell becomes the row's title.
+	 *
+	 * The landing portals table already carries a `th` here. The docs tables are all
+	 * `td`, so on a phone their first row read as equal-weight blocks and the command
+	 * name lost to its own description.
+	 */
+	.table-scroll .data tbody tr > :first-child {
+		padding-top: 0.875rem;
+		font-size: var(--text-body);
+		font-weight: 600;
+		color: var(--color-content);
+	}
+
+	.table-scroll .data td {
+		padding-top: 0.125rem;
+		padding-bottom: 0.125rem;
+	}
+
+	/*
+	 * The column name, on the same line as the value.
+	 *
+	 * It was a block of its own, which cost an extra line per cell and added up: the
+	 * portals table measured 1573px on a phone that way, against 601px when it
+	 * scrolled sideways. Neither is right, so the label leads the line it introduces.
+	 */
+	.table-scroll .data td[data-label] {
+		margin-top: 0.375rem;
+	}
+
+	.table-scroll .data td[data-label]::before {
+		content: attr(data-label);
+		display: inline;
+		font-size: var(--text-micro);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: color-mix(in srgb, var(--color-content) 58%, transparent);
+		margin-right: 0.5rem;
+	}
+
+	/* A tags row is boxes, so it needs its own line under the label. */
+	.table-scroll .data td[data-label] .tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-top: 0.375rem;
+	}
+}
+
 /* MOTION is dial 1 in DESIGN.md: no entrances, no scroll reveals. Only
  * functional feedback moves, and reduced-motion removes even that. */
 @media (prefers-reduced-motion: reduce) {
@@ -418,12 +605,16 @@
 	}
 }
 
-/* Touch targets grow to 44px below 768px (DESIGN.md locks). */
-@media (max-width: 767px) {
-	.codeblock-copy {
-		min-height: 44px;
-		min-width: 44px;
-	}
+/*
+ * Copy is a control and stays 44px at every width.
+ *
+ * It was 44px only below 768px, which left a 768px to 1024px tablet with a 26px
+ * button, measured. The size rule is not in dispute; it was simply scoped to a
+ * width band when an iPad in portrait is just as much a thumb device as a phone.
+ */
+.codeblock-copy {
+	min-height: 44px;
+	min-width: 44px;
 }
 
 @media (max-width: 1023px) {

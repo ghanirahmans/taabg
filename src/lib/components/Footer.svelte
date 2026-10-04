@@ -6,7 +6,15 @@
 
 <footer class="border-t border-base-300">
 	<div class="shell">
-		<div class="grid gap-12 py-16 md:grid-cols-[1.4fr_1fr_1fr]">
+		<!--
+			`minmax(0, …)` on every track, not a bare `fr`.
+
+			A bare `fr` is `minmax(auto, 1fr)`, and `auto` as the minimum is the
+			min-content floor. Nothing here is wide today, so it renders the same, but
+			a track with a floor cannot be shrunk by whatever lands in it, and that is
+			how the landing page ended up 549px wide inside a 345px viewport.
+		-->
+		<div class="grid gap-12 py-16 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
 			<div>
 				<div class="flex items-center gap-2">
 					<img src="/taabg-logo.png" alt="" width="20" height="20" class="rounded-[4px] bg-white p-px" />
@@ -69,7 +77,15 @@
 		padding: 0 var(--gutter);
 	}
 
+	/*
+	 * Footer links are inline in a text flow, which left them at 22px tall and
+	 * below the 24px minimum for a target size. Padding costs nothing here because
+	 * the links are inline rather than flex children, and it keeps the list's visual
+	 * rhythm unchanged.
+	 */
 	.footer-link {
+		display: inline-block;
+		padding-block: 0.3125rem;
 		font-size: var(--text-body);
 		color: color-mix(in srgb, var(--color-content) 80%, transparent);
 		text-decoration: none;
@@ -79,6 +95,13 @@
 		color: var(--color-primary);
 		text-decoration: underline;
 		text-underline-offset: 2px;
+	}
+
+	/* A thumb needs more than the minimum. */
+	@media (pointer: coarse) {
+		.footer-link {
+			padding-block: 0.6875rem;
+		}
 	}
 
 	@media (max-width: 1023px) {

@@ -68,7 +68,13 @@
 <article>
 	<header class="mb-12 border-b border-base-300 pb-8">
 		<Breadcrumbs section={data.section} title={data.title} />
-		<h1 class="text-[1.75rem] leading-tight lg:text-[2.25rem]">{data.title}</h1>
+		<!--
+			Larger than the h2 below it, which it used to match. Both were 28px, so a
+			page title and a section heading rendered at the same size and the page had
+			no clear top. The landing page does not have this problem because its h1 is
+			`--text-display`.
+		-->
+		<h1 class="text-[2.125rem] leading-tight lg:text-[2.75rem]">{data.title}</h1>
 		{#if entry}
 			<p class="mt-4 text-[0.9375rem] leading-relaxed text-content-muted">{entry.description}</p>
 			<!--

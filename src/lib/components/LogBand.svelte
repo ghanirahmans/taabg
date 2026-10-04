@@ -112,6 +112,12 @@
 		font-family: var(--font-sans);
 		font-size: var(--text-small);
 		line-height: 1.375rem;
+		/*
+		 * 44px at every width, not only below 768px. These three are the only
+		 * controls on the landing page that switch between the log transcripts, and
+		 * they measured 36px on a tablet in the band above the old breakpoint.
+		 */
+		min-height: 44px;
 		padding: 0.375rem 0.75rem;
 		border-radius: var(--radius-sm);
 		border: 1px solid transparent;
@@ -247,8 +253,16 @@
 		/*
 		 * The four fixed fields do not fit on one line of a phone, so the message
 		 * drops to its own full-width line rather than being squeezed to zero.
+		 *
+		 * The selector has to be as specific as the base rule, not less. The base
+		 * message rule compiles to `.log li > .log-message`, which is three classes;
+		 * a bare `.log-message` here is two, and higher specificity beats source
+		 * order however late the rule is. Written that way this was silently dead at
+		 * every width: measured at a 414px viewport the media query matched and the
+		 * computed `flex-basis` was still `0px`, so the message was left on the same
+		 * line as four fixed fields and measured 4px wide.
 		 */
-		.log-message {
+		.log li > .log-message {
 			flex-basis: 100%;
 		}
 	}
@@ -277,9 +291,6 @@
 	}
 
 	@media (max-width: 767px) {
-		/* 44px touch target on the scenario tabs. */
-		.tab {
-			min-height: 44px;
-		}
+		/* The scenario tabs carry their 44px height in the base rule, at every width. */
 	}
 </style>

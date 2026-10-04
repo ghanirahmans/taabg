@@ -24,7 +24,13 @@
 
 {#each DOC_SECTIONS as section (section.title)}
 	<section class="mb-14">
-		<h2 class="micro-label mb-5">{section.title}</h2>
+		<!--
+			The id is what the breadcrumb's section link targets, so the two must
+			agree: lower case, non-alphanumerics dropped, spaces to dashes.
+		-->
+		<h2 id={section.title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')} class="micro-label mb-5">
+			{section.title}
+		</h2>
 		<ul class="space-y-3">
 			{#each section.items as item (item.slug)}
 				{@const entry = DOC_ENTRIES.find((d) => d.slug === item.slug)}

@@ -56,8 +56,9 @@
 		return () => window.removeEventListener('keydown', onKey);
 	});
 
-	// Dropdown behaves like a modal surface: scroll locked, page content inert,
-	// focus moved in on open and back to the trigger on close.
+	// The menu is a modal surface: scroll locked, page content inert, focus moved in on
+	// open and back to the trigger on close. The header is deliberately left live, so
+	// the control that opened the dialog is also the control that closes it.
 	$effect(() => {
 		const main = document.querySelector('main');
 		if (!main) return;
@@ -89,7 +90,7 @@
 		}
 		if (event.key !== 'Tab') return;
 
-		// Contain focus inside the dropdown while it is open.
+		// Contain focus inside the dialog while it is open.
 		const panel = document.querySelector<HTMLElement>('#mobile-menu');
 		if (!panel) return;
 		const focusable = panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
@@ -124,11 +125,18 @@
 		</nav>
 
 		<div class="ml-auto flex items-center gap-2 xl:ml-0">
+			<!--
+				No `aria-label` here. The accessible name is computed from the content, so
+				it reads "Search docs Ctrl K", which is exactly the visible text. Giving
+				the button a shorter name than it displays fails the label-content-name
+				check, because the accessible name has to contain the whole visible
+				label. The shortcut appearing in the name is a fair trade: it is the
+				same information the sighted reader gets.
+			-->
 			<button
 				type="button"
 				class="search-trigger"
 				onclick={() => palette.show()}
-				aria-label="Search documentation"
 			>
 				<Search size={14} strokeWidth={2} aria-hidden="true" />
 				<span class="hidden sm:inline">Search docs</span>
@@ -159,29 +167,47 @@
 			</button>
 		</div>
 	</div>
+</header>
 
-	<!--
-		Always in the DOM, hidden when closed. `aria-controls` on the trigger then
-		points at something real in every state, which is what the disclosure pattern
-		requires. `hidden` also takes the links out of the tab order, so the closed
-		menu costs nothing and traps no focus.
-	-->
-	<button
-		type="button"
-		class="scrim"
-		tabindex="-1"
-		aria-hidden="true"
-		hidden={!menuOpen}
-		onclick={() => close(false)}
-	></button>
+<!--
+	The backdrop and the dialog are siblings of the header, not children of it.
+
+	`.site-header` carries `backdrop-filter: blur(8px)`, which is the one blur DESIGN.md
+	permits, and `backdrop-filter` makes an element a containing block for its
+	`position: fixed` descendants exactly as `transform` does. While both lived inside
+	the header, the scrim's containing block was the 65px header box rather than the
+	viewport, so `inset: var(--spacing-header) 0 0 0` resolved to a box 1px tall. It
+	measured 0px. The backdrop had never dimmed anything and, having no area, could
+	never be clicked to dismiss the menu. Moving them out is the fix; the same trap
+	would catch the next fixed-position thing added to the header.
+-->
+<button
+	type="button"
+	class="scrim xl:hidden"
+	tabindex="-1"
+	aria-hidden="true"
+	hidden={!menuOpen}
+	onclick={() => close(false)}
+></button>
+
+<!--
+	Always in the DOM, hidden when closed. `aria-controls` on the trigger then points at
+	something real in every state, which is what the disclosure pattern requires, and
+	`hidden` takes the links out of the tab order so the closed menu costs nothing and
+	traps no focus.
+
+	The wrapper is transparent to pointer events and the card takes them back, so a
+	click anywhere outside the card reaches the scrim underneath. This is the same
+	structure the search palette uses, so there is one shape for a dialog on this site.
+-->
+<div class="menu-wrap xl:hidden" hidden={!menuOpen}>
 	<div
 		id="mobile-menu"
-		class="mobile-menu xl:hidden"
+		class="mobile-menu"
 		role="dialog"
 		aria-label="Site menu"
 		aria-modal="true"
 		tabindex="-1"
-		hidden={!menuOpen}
 		onkeydown={onMenuKey}
 	>
 		<div class="group">
@@ -237,7 +263,7 @@
 			</button>
 		</div>
 	</div>
-</header>
+</div>
 
 <style>
 	.site-header {
@@ -257,11 +283,19 @@
 		padding: 0 var(--gutter);
 	}
 
+	/*
+	 * 44px tall, not the 29px it measured at.
+	 *
+	 * The wordmark's own text sets the height, so the link was exactly as tall as
+	 * its cap height and nothing more. It is the way home from every page on the
+	 * site, so it gets the same target as the two controls beside it.
+	 */
 	.brand {
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
 		flex: none;
+		min-height: 44px;
 		color: var(--color-content);
 		text-decoration: none;
 		font-size: var(--text-lead);
@@ -305,7 +339,16 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		height: 2.25rem;
+		/*
+		 * 44px at every width, not only below 768px.
+		 *
+		 * The menu trigger already made this move. The search button beside it was
+		 * left at 36px between 768px and 1280px, which is exactly the width of a
+		 * tablet in portrait. Both are header controls reached with the same thumb,
+		 * so they should be the same size, and a 36px target on a tablet is the
+		 * complaint this started from.
+		 */
+		height: 44px;
 		padding: 0 0.75rem;
 		font-family: inherit;
 		font-size: var(--text-support);
@@ -317,6 +360,19 @@
 		transition:
 			color 120ms ease,
 			border-color 120ms ease;
+	}
+
+	/*
+	 * 44px wide, so the icon-only form is a square target.
+	 *
+	 * Below the `sm` breakpoint the label and the shortcut both hide and the button
+	 * collapses to its icon: 14px of glyph plus 0.75rem of padding each side plus
+	 * the border measured 40px. The height was already 44px from the base rule, so
+	 * the button was a 40 by 44 target beside a 44 by 44 one.
+	 */
+	.search-trigger {
+		min-width: 44px;
+		justify-content: center;
 	}
 
 	/* Control boundary, so it uses the 3:1 border rather than a hairline. */
@@ -332,7 +388,18 @@
 	}
 
 	.menu-trigger {
-		width: 2.25rem;
+		/*
+		 * 44px, not 36px, and not only below 768px.
+		 *
+		 * Between 768px and 1280px this button is the entire primary navigation:
+		 * every chip is hidden, so "where am I and where can I go" collapses into
+		 * this one control. It was 36px next to a 189px search button, which put the
+		 * site navigation visibly subordinate to a secondary action that can be
+		 * replaced by a keyboard shortcut. On a tablet that is the wrong way round,
+		 * and 36px is a small target for a thumb on a 912px-wide screen.
+		 */
+		width: 44px;
+		height: 44px;
 		justify-content: center;
 		padding: 0;
 	}
@@ -346,48 +413,112 @@
 		color: color-mix(in srgb, var(--color-content) 55%, transparent);
 	}
 
+	/*
+	 * The backdrop starts below the header, on purpose. The header carries the brand,
+	 * the search trigger and the X, so the dialog can be closed by the control that
+	 * opened it and the page keeps a stable top edge while the menu is open.
+	 *
+	 * z-index 40 and 41 are the search palette's numbers, not an accident of ordering:
+	 * the two dialogs on this site share a layer scale so whichever opens last is on
+	 * top, and the header is 30.
+	 */
 	.scrim {
 		position: fixed;
 		inset: var(--spacing-header) 0 0 0;
-		background-color: rgb(0 0 0 / 0.55);
+		background-color: rgb(0 0 0 / 0.6);
 		border: 0;
-		z-index: 25;
+		z-index: 40;
 		cursor: default;
 	}
 
-	.mobile-menu {
-		position: absolute;
-		top: var(--spacing-header);
-		left: 0;
-		right: 0;
-		z-index: 26;
-		background-color: var(--color-base-100);
-		border-bottom: 1px solid var(--color-base-300);
-		padding: 0.25rem 0 1rem;
-		max-height: calc(100dvh - var(--spacing-header));
-		overflow-y: auto;
-		box-shadow: 0 12px 24px rgb(0 0 0 / 0.35);
+	/*
+	 * A transparent full-viewport layer that positions the card.
+	 *
+	 * `pointer-events: none` is what lets a click outside the card reach the scrim
+	 * underneath. Without it this wrapper covers the viewport and swallows every click
+	 * that is not on the card, so the scrim becomes unreachable and the only way out is
+	 * Escape or the X.
+	 */
+	.menu-wrap {
+		position: fixed;
+		inset: 0;
+		z-index: 41;
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+		padding: calc(var(--spacing-header) + 1.5rem) 1.25rem 1.5rem;
+		pointer-events: none;
 	}
 
 	/*
-	 * `hidden` must beat the panel's own `position`, or the closed menu still
-	 * covers the page and its links stay in the tab order. Both selectors have the
-	 * same specificity, so source order is what decides: this comes after.
+	 * A centred card, not a full width sheet.
+	 *
+	 * This used to be `position: absolute` with `left: 0; right: 0` below the header,
+	 * which is a dropdown: a 360px wide band of eleven rows hanging off the top of the
+	 * page. It read as part of the header rather than as something opened on top of the
+	 * page, and the trigger is a 44px square, so the thing it opened was 45 times its
+	 * area and began at the opposite end of the screen from the button that opened it.
+	 *
+	 * Centred by the wrapper, so the card needs no `left: 50%` and no transform. A
+	 * transform here would make the card a containing block for anything fixed inside
+	 * it, which is the same trap the header's `backdrop-filter` sets two elements up.
+	 */
+	.mobile-menu {
+		pointer-events: auto;
+		/*
+		 * 30rem is wide enough for the longest row, "Bot Commands", without the heading
+		 * above it wrapping, and narrow enough that the card does not sit in the middle
+		 * of a wide screen looking abandoned. The wrapper's own 1.25rem padding is what
+		 * keeps it off the edges on a phone.
+		 */
+		width: min(30rem, 100%);
+		max-height: 100%;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		background-color: var(--color-base-100);
+		border: 1px solid var(--color-border-strong);
+		border-radius: var(--radius-md);
+		padding: 0.25rem 0 0.5rem;
+		box-shadow:
+			0 0 0 1px rgb(0 0 0 / 0.2),
+			0 18px 40px rgb(0 0 0 / 0.45);
+	}
+
+	/*
+	 * `hidden` must beat these elements' own `display`, or the closed menu still covers
+	 * the page and its links stay in the tab order. `.menu-wrap` is `display: flex` and
+	 * covers the viewport whatever size the card is, so this matters more than it did
+	 * when the panel was a bar below the header. Both selectors have the same
+	 * specificity, so source order is what decides, and this comes after.
+	 *
+	 * There is no `.mobile-menu[hidden]` rule and there should not be one: `hidden` is on
+	 * the wrapper, not the card, and svelte-check reports the unused selector rather than
+	 * letting it sit there looking like it does something.
 	 */
 	.scrim[hidden],
-	.mobile-menu[hidden] {
+	.menu-wrap[hidden] {
 		display: none;
 	}
 
+	/*
+	 * Internal padding is the card's own padding, 1.25rem, not a bar's edge to edge
+	 * inset.
+	 *
+	 * These were 2rem because the panel used to span the full width and the labels sat
+	 * near the screen edge. On a 30rem card that leaves an awkward gutter on a floating
+	 * surface. `.subgroup-label` was 2rem unconditionally while a media query dropped
+	 * `.group-label` and `.menu-row` to 1.25rem below 1024px, so on a phone the section
+	 * heading sat further in than the group heading above it, which is backwards.
+	 */
 	.group-label {
-		padding: 1rem 2rem 0.5rem;
+		padding: 0.875rem 1.25rem 0.375rem;
 	}
 
 	/* Section heading inside the Documentation group, one level in from the group
 	 * label. Seven doc links under one flat heading read as a single undifferentiated
 	 * list, which is why the sidebar groups them and this does too. */
 	.subgroup-label {
-		padding: 0.625rem 2rem 0.25rem;
+		padding: 0.625rem 1.25rem 0.25rem;
 	}
 
 	.doc-subgroup + .doc-subgroup {
@@ -414,8 +545,16 @@
 		background-color: transparent;
 		border: 0;
 		border-radius: var(--radius-sm);
-		padding: 0 2rem;
-		height: 2.5rem;
+		padding: 0 1.25rem;
+		/*
+		 * 44px at every width the menu can open at.
+		 *
+		 * The trigger is `xl:hidden`, so this dialog is reachable up to 1279px, and the
+		 * 44px rule used to sit inside `@media (max-width: 767px)`. A tablet at 768px to
+		 * 1023px therefore got 40px rows: under the target size, on the device most
+		 * likely to be holding the menu open one-handed.
+		 */
+		height: 44px;
 		cursor: pointer;
 		text-align: left;
 	}
@@ -433,27 +572,12 @@
 		.shell {
 			padding: 0 1.25rem;
 		}
-
-		.group-label,
-		.menu-row {
-			padding-left: 1.25rem;
-			padding-right: 1.25rem;
-		}
 	}
 
 	@media (max-width: 767px) {
-		.search-trigger,
-		.menu-trigger {
-			height: 44px;
-		}
-
-		.menu-trigger {
-			width: 44px;
-		}
-
-		/* Rows and tabs follow the 44px touch rule. */
-		.menu-row {
-			height: 44px;
-		}
+		/*
+		 * Nothing left to declare. Both header triggers and every menu row carry their
+		 * 44px in their base rules, at every width the menu can open at.
+		 */
 	}
 </style>

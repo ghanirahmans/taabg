@@ -62,7 +62,7 @@
 		</div>
 
 		<div class="table-scroll">
-			<table class="data table-wide">
+			<table class="data" data-columns="5">
 				<caption class="sr-only">
 					Portals, the checks each one backs, and the concurrency limit and its reason
 				</caption>
@@ -80,15 +80,15 @@
 						<tr>
 							<th scope="row" class="mono">{portal.name}</th>
 							<td class="muted">{portal.role}</td>
-							<td>
+							<td data-label="Checks">
 								<span class="tags">
 									{#each portal.checks as check (check)}
 										<span class="tag">{check}</span>
 									{/each}
 								</span>
 							</td>
-							<td class="mono">{portal.limit}</td>
-							<td class="muted">{portal.limitReason}</td>
+							<td class="mono" data-label="Sessions">{portal.limit}</td>
+							<td class="muted" data-label="Why that limit">{portal.limitReason}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -156,7 +156,7 @@
 			</div>
 
 			<div class="table-scroll">
-				<table class="data table-narrow">
+				<table class="data" data-columns="3">
 					<caption class="sr-only">Direct-reply commands, their aliases and what they do</caption>
 					<thead>
 						<tr>
@@ -169,8 +169,8 @@
 						{#each DIRECT_COMMANDS as command (command.command)}
 							<tr>
 								<td class="mono nowrap">{command.command}</td>
-								<td class="mono muted wrap-ok">{command.aliases || 'none'}</td>
-								<td class="muted">{command.does}</td>
+								<td class="mono muted wrap-ok" data-label="Also accepted">{command.aliases || 'none'}</td>
+								<td class="muted" data-label="Does">{command.does}</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -330,8 +330,13 @@
 
 	/* Tables sit on a panel surface, inset from the shell so the row rules have
 		something to end against. */
+	/* The frame, its scroll and its card mode are global in `app.css`, because the docs
+	 * tables need the same treatment and two copies of a container query is two places
+	 * for the threshold to drift apart.
+	 *
+	 * What is left here is the landing page's own surface: these tables sit on a panel,
+	 * inset from the shell, so the row rules have something to end against. */
 	.table-scroll {
-		overflow-x: auto;
 		background-color: var(--color-base-200);
 		border: 1px solid var(--color-base-300);
 		border-radius: var(--radius-md);
@@ -344,20 +349,19 @@
 	}
 
 	/*
-	 * A table's width floor belongs to the table, not to `.data`. The portals
-	 * table spans the full content width and needs 44rem to keep five columns
-	 * legible. The commands table sits in the 623px right-hand track of the
-	 * asymmetric split, where a 44rem floor overflowed by 81px and produced a
-	 * horizontal scrollbar, so it declares a smaller floor and lets the
-	 * description column wrap instead.
+	 * There are no width floors here, and the reason is worth keeping in mind.
+	 *
+	 * `table-wide` and `table-narrow` used to carry `min-width` floors. Those floors and
+	 * the card mode that lifts them had to agree at every width across two files, and
+	 * they drifted: a scoped `min-width: 44rem` here scored two classes against the
+	 * global `min-width: 0` in the card mode and won, so the floor survived, the frame
+	 * could not shrink, and the landing tables scrolled sideways by 409px on a 360px
+	 * screen. A table that wraps is better than a table that insists.
+	 *
+	 * Both class names are gone from the `<table>` elements too. The column count is on
+	 * the element as `data-columns`, so the shape of a table is now declared once and
+	 * can be read by a guard without the guard having to parse the markup.
 	 */
-	.table-wide {
-		min-width: 44rem;
-	}
-
-	.table-narrow {
-		min-width: 22rem;
-	}
 
 	.data th,
 	.data td {
@@ -465,8 +469,21 @@
 		color: color-mix(in srgb, var(--color-content) 70%, transparent);
 	}
 
+	/*
+	 * `minmax(0, 1fr)` and not a bare `display: grid`.
+	 *
+	 * A grid with no `grid-template-columns` gets an implicit `auto` track, and an
+	 * `auto` track sizes to its content's max-content. The code frames inside are
+	 * wider than a phone, so the track grew to 468px and 525px inside a 297px column
+	 * and pushed the whole page sideways. Measured at 360px: the document scrolled
+	 * horizontally with 549px of content in a 345px viewport, at every phone width.
+	 *
+	 * This is the same class of fault as the log row earlier: a track that never
+	 * shrinks, so a wide child takes the container with it.
+	 */
 	.snippet-pair {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 3rem;
 		margin-top: 5rem;
 	}
@@ -489,14 +506,25 @@
 		min-width: 0;
 	}
 
+	/* The split carries a code frame too, and it needed the same clamp. */
+	.split :global(.codeblock) {
+		min-width: 0;
+	}
+
 	.snippet-pair .micro-label,
 	.split-snippet .micro-label {
 		margin-bottom: 1rem;
 	}
 
-	/* Asymmetric split: the prose gets a narrower track than the table. */
+	/*
+	 * Asymmetric split: the prose gets a narrower track than the table.
+	 *
+	 * Same reason as `.snippet-pair`: an implicit `auto` track here sized to the
+	 * code frame's max-content and measured 525px inside a 297px column.
+	 */
 	.split {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 4rem;
 		align-items: start;
 	}
@@ -583,7 +611,17 @@
 			gap: 1.5rem;
 		}
 
-		.figure {
+		/*
+		 * `:not(:last-child)`, not `.figure`.
+		 *
+		 * The base rule pairs `.figure` with `.figure:last-child`, which carries two
+		 * classes and so outranks a bare `.figure` here however late this block is. The
+		 * last figure kept `padding-right: 0` from the base rule and every other figure
+		 * got 1.5rem. That happened to be the right picture, because the last figure has
+		 * no right border to sit clear of, but it was right by accident. Naming the
+		 * exception says what is meant, and leaves nothing resting on specificity.
+		 */
+		.figure:not(:last-child) {
 			padding-right: 1.5rem;
 		}
 	}

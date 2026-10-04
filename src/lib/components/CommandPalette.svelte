@@ -15,6 +15,23 @@
 	let activeIndex = $state(0);
 	let input = $state<HTMLInputElement | null>(null);
 	let panel = $state<HTMLElement | null>(null);
+	let dialog = $state<HTMLElement | null>(null);
+
+	/**
+	 * Where focus was before the dialog opened.
+	 *
+	 * Escape and the scrim both close the palette, and when the dialog unmounts the
+	 * browser drops focus to `<body>`. Measured after closing: focus was nowhere
+	 * near the trigger. A keyboard user who opens search, finds nothing, and
+	 * dismisses it ends up back at the top of the document with no idea where they
+	 * were, which is most of what makes a search feel clumsy.
+	 *
+	 * Deliberately a plain variable, not `$state`. The effect below both reads and
+	 * writes it, and reactive state read inside an effect is a dependency: making it
+	 * reactive meant the effect invalidated itself on every write, which tore the
+	 * dialog down the moment it opened. Nothing needs to render from this value.
+	 */
+	let opener: HTMLElement | null = null;
 
 	const hits = $derived(queryIndex(index, query));
 
@@ -25,13 +42,102 @@
 
 	$effect(() => {
 		if (!palette.open) return;
+
+		// Read the active element before anything moves, and only once per open.
+		if (!opener) opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
 		query = '';
 		activeIndex = 0;
+
+		/*
+		 * Take the rest of the page out of the tab order while the dialog is open.
+		 *
+		 * The dialog declared `aria-modal="true"`, which tells assistive tech to
+		 * ignore the background but does nothing to the keyboard. Measured with the
+		 * palette open: 9 focusable elements inside the dialog and 65 in the document,
+		 * so Tab walked out into the page behind it.
+		 *
+		 * `inert` is used rather than a hand-rolled Tab handler because the browser
+		 * then excludes the background from the tab order by itself, and this has to
+		 * hold for pointer, keyboard and assistive tech alike.
+		 */
+		const background = document.querySelectorAll<HTMLElement>('.site-header, main, footer, a[href="#main"]');
+		const marked: HTMLElement[] = [];
+		for (const el of background) {
+			if (!el.hasAttribute('inert')) {
+				el.setAttribute('inert', '');
+				marked.push(el);
+			}
+		}
+
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+
 		// The dialog is opened by a click or a shortcut, so the next frame is the
 		// first moment focus is allowed to move.
+		//
+		// `requestAnimationFrame` alone is not enough: it never fires in a tab the
+		// user has not looked at, so a shortcut pressed from a background tab would
+		// open the palette with the field still unfocused. The timeout covers it.
 		const frame = requestAnimationFrame(() => input?.focus());
-		return () => cancelAnimationFrame(frame);
+		const timer = setTimeout(() => input?.focus(), 60);
+
+		return () => {
+			cancelAnimationFrame(frame);
+			clearTimeout(timer);
+
+			/*
+			 * Release `inert` before moving focus, in this order and in one effect.
+			 *
+			 * Split across two effects the cleanup order decides the outcome, and it
+			 * decided the wrong way: the focus restore ran while the header was still
+			 * inert, and `focus()` on an inert element does nothing at all. Measured:
+			 * focus landed on `<body>`. Doing both here makes the sequence explicit
+			 * instead of depending on declaration order.
+			 */
+			for (const el of marked) el.removeAttribute('inert');
+			document.body.style.overflow = previousOverflow;
+
+			const back = opener;
+			opener = null;
+			// Deferred by one task, so the dialog's own `{#if}` has left the DOM first.
+			setTimeout(() => {
+				const target =
+					back && back.isConnected
+						? back
+						: // The opener went away, usually because the page navigated. The
+							// search button is on every route, so it is the safe place to land.
+							document.querySelector<HTMLElement>('.search-trigger');
+				target?.focus();
+			}, 0);
+		};
 	});
+
+	/**
+	 * Keep Tab inside the dialog.
+	 *
+	 * `inert` removes the background, but the browser chrome is still reachable, and
+	 * shifting out of the first control into the address bar and back in lands on the
+	 * page behind. Wrapping at both ends keeps the dialog a closed loop.
+	 */
+	function trapTab(event: KeyboardEvent) {
+		if (event.key !== 'Tab' || !dialog) return;
+		const focusable = [...dialog.querySelectorAll<HTMLElement>('a[href], button, input, [tabindex]:not([tabindex="-1"])')]
+			.filter((el) => el.getBoundingClientRect().height > 0);
+		if (focusable.length === 0) return;
+
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		const active = document.activeElement;
+
+		if (event.shiftKey && active === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && active === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	}
 
 	async function choose(slug: string, anchor?: string) {
 		palette.hide();
@@ -39,6 +145,8 @@
 	}
 
 	function onKeydown(event: KeyboardEvent) {
+		trapTab(event);
+
 		if (event.key === 'Escape') {
 			event.preventDefault();
 			palette.hide();
@@ -62,6 +170,7 @@
 	<button class="scrim" type="button" tabindex="-1" aria-hidden="true" onclick={() => palette.hide()}></button>
 
 	<div
+		bind:this={dialog}
 		class="wrap"
 		role="dialog"
 		aria-modal="true"
@@ -72,12 +181,26 @@
 		<div class="panel">
 			<div class="field">
 				<Search size={15} strokeWidth={2} aria-hidden="true" class="shrink-0 text-content-muted" />
+				<!--
+					The field carries an explicit name.
+
+					It had only a placeholder, which is not an accessible name: it
+					disappears the moment someone types and it is skipped by several
+					screen readers. Nothing else labelled it, because the dialog's own
+					`aria-label` names the dialog, not the control inside it.
+
+					Every audit missed this. The palette is closed when the page loads,
+					so Lighthouse never saw the field, and the static checks read the
+					built HTML where the input is present but the failure only appears
+					once the dialog is open.
+				-->
 				<!-- svelte-ignore a11y_autofocus -->
 				<input
 					bind:this={input}
 					bind:value={query}
-					type="text"
+					type="search"
 					role="combobox"
+					aria-label="Search pages and headings"
 					aria-expanded="true"
 					aria-controls="palette-results"
 					aria-activedescendant={hits[activeIndex] ? `hit-${activeIndex}` : undefined}
@@ -86,7 +209,7 @@
 					placeholder="Search pages and headings"
 					class="min-w-0 flex-1 bg-transparent text-[0.9375rem] outline-none placeholder:text-content-muted"
 				/>
-				<kbd class="kbd">Esc</kbd>
+				<kbd class="kbd" aria-hidden="true">Esc</kbd>
 			</div>
 
 			<div bind:this={panel} id="palette-results" role="listbox" aria-label="Results" class="results">

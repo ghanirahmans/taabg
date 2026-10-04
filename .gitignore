@@ -20,3 +20,6 @@ Thumbs.db
 
 # Verification scratch, not part of the site
 tmp-verify/
+
+# Output of a backgrounded `bun run preview` during verification
+preview.log
