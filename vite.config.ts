@@ -22,6 +22,24 @@ function escapeLabel(value: string | undefined): string {
 }
 
 /**
+ * Shiki emits `<pre tabindex="0">`, and Svelte's compiler objects to a
+ * noninteractive element carrying a non-negative tabindex.
+ *
+ * The rule is right in general and wrong here. A code frame with `overflow-x: auto`
+ * is a scrollable region, and a scrollable region that cannot be focused cannot be
+ * scrolled by a keyboard: WCAG 2.1.1. Removing the attribute to quiet a warning
+ * would trade a lint message for a keyboard trap on every code block in the docs,
+ * which is the exact opposite of what the warning is for. GitHub, MDN and Shiki's
+ * own documentation all keep it.
+ *
+ * The mdsvex path is the only one that reaches the compiler as Svelte source, so
+ * this is the only place the message appears. `CodeBlock.svelte` injects the same
+ * markup through `{@html}`, which is not compiled, and the landing page has always
+ * been silent here.
+ */
+const SHIKI_TABINDEX_IGNORE = '<!-- svelte-ignore a11y_no_noninteractive_tabindex -->';
+
+/**
  * The label is the author's fence tag, not the resolved grammar, so the reader
  * sees what they wrote. An untagged fence gets no label at all rather than a
  * guessed one: a Telegram transcript tagged `text` is not shell, and labelling it
@@ -44,6 +62,7 @@ function wrapBlock(code: string, lang?: string | null): string {
 	return [
 		'<div class="codeblock">',
 		bar,
+		SHIKI_TABINDEX_IGNORE,
 		highlight(code, lang ?? 'text'),
 		'</div>'
 	].join('');

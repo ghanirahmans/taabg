@@ -50,6 +50,31 @@ and the shape of the script is what makes the regression possible in the first p
 Note that `bun install --no-save` still writes `bun.lock` in bun 1.4.2, despite its
 own help text. Do not rely on it to install without touching the lockfile.
 
+## Deploying
+
+Deployed to Vercel. `vercel.json` exists for one reason: **the first deploy failed**
+with `No Output Directory named "public" found after the Build completed`.
+
+adapter-static writes to `build/`, because `vite.config.ts` passes
+`pages: 'build', assets: 'build'`. Vercel's zero-config mode guesses `public/` when it
+does not recognise the framework, and `framework: null` tells it not to guess. So the
+three settings that matter are `framework: null`, `buildCommand: bun run build`, and
+`outputDirectory: build`.
+
+`cleanUrls: true` is what makes `/docs/introduction` resolve to
+`docs/introduction.html`. Without it every internal link would 404, because
+adapter-static writes extensioned files and nothing rewrites the URLs.
+
+`installCommand` is deliberately plain `bun install`, not `--frozen-lockfile`. Vercel
+pinned bun 1.4.1 while `package.json` declares `bun@1.4.2` and `bun.lock` was written
+by 1.4.2, and a frozen install refuses a lockfile it considers stale. That is a
+failure mode nobody can reproduce locally, and the only thing that was actually
+broken was the output directory.
+
+There is no `404.html`. adapter-static only writes one when an `+error.svelte` route
+exists, and this site has none, so an unknown path gets Vercel's own 404. That is
+better than a soft 404, which is what an SPA fallback would give, but it is not styled.
+
 ## Where this lives
 
 This is a standalone project at `D:\Projects\taabg`, deliberately outside the Go
@@ -557,6 +582,11 @@ Every one of these produced a false green here:
     40px between 768px and 1279px, which is a tablet, which is a real device. The
     44px rule existed and was correct; it was just scoped to a band that stopped one
     pixel short of where the control became reachable.
+17. **A build that succeeds locally can still fail on a host you do not control.**
+    The first Vercel deploy failed on `No Output Directory named "public"`, after
+    `✔ done`, after adapter-static had written the site. Nothing in the repository said
+    where the output was supposed to go, so the only place to record it is
+    `vercel.json`.
 
 When a check cannot measure something, it should say `unmeasurable` rather than
 defaulting to a value that passes.
